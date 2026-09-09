@@ -957,6 +957,105 @@
           "intended_underlying_offense_class"
         ]
       }
+    },
+    "121.11": {
+      "article": 121,
+      "section": "121.11",
+      "name": "Criminal obstruction of breathing or blood circulation",
+      "classification": "ClassA_Misdemeanor",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "121.12": {
+      "article": 121,
+      "section": "121.12",
+      "name": "Strangulation in the second degree",
+      "classification": "ClassD_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "121.13": {
+      "article": 121,
+      "section": "121.13",
+      "name": "Strangulation in the first degree",
+      "classification": "ClassC_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "121.13-A": {
+      "article": 121,
+      "section": "121.13-A",
+      "name": "Aggravated strangulation",
+      "classification": "ClassC_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "125.10": {
+      "article": 125,
+      "section": "125.10",
+      "name": "Criminally negligent homicide",
+      "classification": "ClassE_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "125.11": {
+      "article": 125,
+      "section": "125.11",
+      "name": "Aggravated criminally negligent homicide",
+      "classification": "ClassC_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "125.12": {
+      "article": 125,
+      "section": "125.12",
+      "name": "Vehicular manslaughter in the second degree",
+      "classification": "ClassD_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "125.13": {
+      "article": 125,
+      "section": "125.13",
+      "name": "Vehicular manslaughter in the first degree",
+      "classification": "ClassC_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "125.14": {
+      "article": 125,
+      "section": "125.14",
+      "name": "Aggravated vehicular homicide",
+      "classification": "ClassB_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
     }
   }
 }

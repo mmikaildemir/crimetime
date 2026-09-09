@@ -11,14 +11,23 @@ Run:
 """
 
 import json
+import re
 from pathlib import Path
 from copy import deepcopy
 
+import requests
 import streamlit as st
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 LISTS_PATH = DATA_DIR / "lists.json"
 SENTENCING_PATH = DATA_DIR / "sentencing_tables.json"
+
+_OPEN_LEG_KEY = os.getenv("OPEN_LEGISLATION_API_KEY", "").strip().strip("'").strip('"')
+_OPEN_LEG_BASE = "https://legislation.nysenate.gov/api/3/laws"
 
 CLASSIFICATIONS = [
     "ClassA_I_Felony", "ClassA_II_Felony",
@@ -28,6 +37,64 @@ CLASSIFICATIONS = [
     "ClassA_Misdemeanor", "ClassB_Misdemeanor", "Unclassified_Misdemeanor",
     "Violation",
 ]
+
+# Maps statute text patterns to our classification enum
+_CLASS_TEXT_MAP = {
+    r"class\s+a[-\s]?i\s+felony": "ClassA_I_Felony",
+    r"class\s+a[-\s]?ii\s+felony": "ClassA_II_Felony",
+    r"class\s+b\s+felony": "ClassB_Felony",
+    r"class\s+c\s+felony": "ClassC_Felony",
+    r"class\s+d\s+felony": "ClassD_Felony",
+    r"class\s+e\s+felony": "ClassE_Felony",
+    r"class\s+a\s+misdemeanor": "ClassA_Misdemeanor",
+    r"class\s+b\s+misdemeanor": "ClassB_Misdemeanor",
+    r"is\s+a\s+violation(?!\s+of)": "Violation",
+}
+
+
+def _fetch_statute(section: str, law_id: str = "PEN") -> dict | None:
+    """Fetch a statute from the NYS Open Legislation API."""
+    if not _OPEN_LEG_KEY:
+        return None
+    try:
+        resp = requests.get(
+            f"{_OPEN_LEG_BASE}/{law_id}/{section}",
+            params={"key": _OPEN_LEG_KEY, "full": "true"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("success"):
+            return data.get("result")
+    except Exception:
+        pass
+    return None
+
+
+def _parse_classification(statute_text: str) -> str | None:
+    """Parse the classification from statute text.
+
+    Statutes end with patterns like 'is a class E felony' or 'is a class A misdemeanor'.
+    Finds the earliest classification mention in the text (the base classification
+    always appears before any conditional escalation clauses).
+    """
+    # Normalize: replace literal \n (backslash + n) with spaces, collapse whitespace
+    text = statute_text.replace("\\n", " ")
+    text_lower = re.sub(r"\s+", " ", text.lower())
+    best_match = None
+    best_pos = len(text_lower)
+    for pattern, classification in _CLASS_TEXT_MAP.items():
+        m = re.search(pattern, text_lower)
+        if m and m.start() < best_pos:
+            best_pos = m.start()
+            best_match = classification
+    return best_match
+
+
+def _parse_article(section: str) -> int:
+    """Derive article number from section (e.g. 120.70 -> 120)."""
+    parts = section.split(".")
+    return int(parts[0]) if parts[0].isdigit() else 0
 
 
 # ---------------------------------------------------------------------------
@@ -60,9 +127,36 @@ def offenses_tab():
         col1, col2 = st.columns(2)
         with col1:
             new_section = st.text_input("Section *", placeholder="e.g. 120.02", key="add_section")
-            new_name = st.text_input("Name *", placeholder="e.g. Reckless assault of a child", key="add_name")
+            col_name_btn, _ = st.columns([3, 1])
+            new_name = st.text_input("Name", placeholder="Auto-filled on resolve, or type manually", key="add_name")
         with col2:
             new_article = st.number_input("Article", min_value=0, value=120, key="add_article")
+
+        # Auto-resolve button — fetches from NYS Open Legislation API
+        col_resolve, col_info = st.columns([1, 3])
+        with col_resolve:
+            if st.button("Auto-resolve §", help="Fetch name + classification from NYS Open Legislation API", key="auto_resolve_btn"):
+                if new_section:
+                    result = _fetch_statute(new_section)
+                    if result:
+                        name = result.get("title", "")
+                        text = result.get("text", "")
+                        classification = _parse_classification(text)
+                        article = _parse_article(new_section)
+
+                        # Update session state so widgets pick up new values
+                        st.session_state["add_name"] = name
+                        st.session_state["add_article"] = article
+                        if classification:
+                            st.session_state["add_class"] = classification
+                        st.success(f"Resolved: {name} — {classification or 'classification not found'}")
+                        st.rerun()
+                    else:
+                        st.error("Could not fetch statute. Check section number or API key.")
+                else:
+                    st.warning("Enter a section number first.")
+        with col_info:
+            st.caption("Click to auto-fill name + classification from the NYS legislature API. Works for straightforward offenses (not attempts/conspiracies).")
 
         new_attempt = st.checkbox("Is this an attempt of another offense?", key="add_attempt")
         new_attempt_of = None
