@@ -103,17 +103,15 @@ def offenses_tab():
         new_conspiracy_of = st.text_input("Conspiracy of (section)", placeholder="e.g. 125.25", key="add_conspiracy_of") if new_conspiracy else ""
 
         if st.button("Add offense", type="primary", key="add_btn"):
-            if not new_section or not new_name:
-                st.error("Section and name are required.")
-            elif new_attempt and not new_attempt_of:
-                st.error("Attempt target section is required for attempts.")
+            if not new_section:
+                st.error("Section is required.")
             elif new_section in offenses:
                 st.error(f"Section {new_section} already exists.")
             else:
                 offenses[new_section] = {
                     "article": int(new_article),
                     "section": new_section,
-                    "name": new_name,
+                    "name": new_name if new_name else "",
                     "classification": new_class,
                     "elements": new_elements if new_elements else None,
                     "isAttempt": new_attempt,
@@ -122,7 +120,7 @@ def offenses_tab():
                     "conspiracyOf": new_conspiracy_of if new_conspiracy else None,
                 }
                 _save(LISTS_PATH, data)
-                st.success(f"Added §{new_section} — {new_name}")
+                st.success(f"Added §{new_section}")
                 st.rerun()
 
     # --- List existing offenses ---
