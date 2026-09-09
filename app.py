@@ -124,38 +124,43 @@ def offenses_tab():
 
     # --- Add new offense ---
     with st.expander("Add new offense", expanded=False):
+        # Auto-resolve: process button click BEFORE widgets are created
+        # so we can set session_state values that the widgets will pick up
+        if st.session_state.get("_auto_resolve_triggered"):
+            section_to_resolve = st.session_state.pop("_auto_resolve_triggered")
+            result = _fetch_statute(section_to_resolve)
+            if result:
+                name = result.get("title", "")
+                text = result.get("text", "")
+                classification = _parse_classification(text)
+                article = _parse_article(section_to_resolve)
+                st.session_state["add_name"] = name
+                st.session_state["add_article"] = article
+                if classification:
+                    st.session_state["add_class"] = classification
+                st.session_state["_auto_resolve_msg"] = f"Resolved: {name} — {classification or 'classification not found'}"
+            else:
+                st.session_state["_auto_resolve_msg"] = "Could not fetch statute. Check section number or API key."
+
         col1, col2 = st.columns(2)
         with col1:
             new_section = st.text_input("Section *", placeholder="e.g. 120.02", key="add_section")
-            col_name_btn, _ = st.columns([3, 1])
             new_name = st.text_input("Name", placeholder="Auto-filled on resolve, or type manually", key="add_name")
         with col2:
             new_article = st.number_input("Article", min_value=0, value=120, key="add_article")
 
-        # Auto-resolve button — fetches from NYS Open Legislation API
+        # Auto-resolve button — sets a flag, triggers rerun, values applied before widgets
         col_resolve, col_info = st.columns([1, 3])
         with col_resolve:
             if st.button("Auto-resolve §", help="Fetch name + classification from NYS Open Legislation API", key="auto_resolve_btn"):
                 if new_section:
-                    result = _fetch_statute(new_section)
-                    if result:
-                        name = result.get("title", "")
-                        text = result.get("text", "")
-                        classification = _parse_classification(text)
-                        article = _parse_article(new_section)
-
-                        # Update session state so widgets pick up new values
-                        st.session_state["add_name"] = name
-                        st.session_state["add_article"] = article
-                        if classification:
-                            st.session_state["add_class"] = classification
-                        st.success(f"Resolved: {name} — {classification or 'classification not found'}")
-                        st.rerun()
-                    else:
-                        st.error("Could not fetch statute. Check section number or API key.")
+                    st.session_state["_auto_resolve_triggered"] = new_section
+                    st.rerun()
                 else:
                     st.warning("Enter a section number first.")
         with col_info:
+            if st.session_state.get("_auto_resolve_msg"):
+                st.info(st.session_state.pop("_auto_resolve_msg"))
             st.caption("Click to auto-fill name + classification from the NYS legislature API. Works for straightforward offenses (not attempts/conspiracies).")
 
         new_attempt = st.checkbox("Is this an attempt of another offense?", key="add_attempt")
