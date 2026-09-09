@@ -42,11 +42,8 @@ def _load(path: Path) -> dict:
 def _save(path: Path, data: dict) -> None:
     with open(path, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    _load.clear()
 
 
-def _reload():
-    _load.clear()
 
 
 # ---------------------------------------------------------------------------
