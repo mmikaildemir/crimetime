@@ -1,0 +1,679 @@
+{
+  "_notes": [
+    "Ranges keyed by classification, not by individual offense. Offense nodes point here via their 'classification' + 'derived' flags.",
+    "nonViolentFelony tables apply when isVFO=false (routes to Article 70.00 / 70.06 / 70.10).",
+    "violentFelony tables apply when isVFO=true (routes to 70.02 / 70.04 / 70.08) -- now populated. SUNSET WARNING: PL 70.02(2)(a) and 70.04(2) determinate provisions are repealed September 1, 2027 and revert to indeterminate. Tables below reflect pre-sunset (current) law.",
+    "If an offense has a statute-specific sentencing carve-out (rare, e.g. certain weapon offenses), override at the offense level, not here."
+  ],
+  "violation": {
+    "allOffenders": {
+      "type": "definite/discharge/fine",
+      "maxImprisonmentDays": 15,
+      "fineMax": 250,
+      "probationEligible": false
+    }
+  },
+  "misdemeanor": {
+    "ClassB": {
+      "firstOffender": {
+        "type": "definite",
+        "maxTermMonths": 3
+      }
+    },
+    "ClassA": {
+      "firstOffender": {
+        "type": "definite",
+        "maxTermMonths": 12,
+        "probationEligibleYears": 3
+      }
+    }
+  },
+  "nonViolentFelony": {
+    "firstOffender": {
+      "ClassE": {
+        "type": "indeterminate",
+        "maxTermYears": [
+          1,
+          4
+        ],
+        "minTermRule": "1yr to 1/3 of max",
+        "altDefiniteMax1yr": true,
+        "probationEligibleYears": 5
+      },
+      "ClassD": {
+        "type": "indeterminate",
+        "maxTermYears": [
+          1,
+          7
+        ],
+        "minTermRule": "1yr to 1/3 of max",
+        "altDefiniteMax1yr": true,
+        "probationEligibleYears": 5
+      },
+      "ClassC": {
+        "type": "indeterminate",
+        "maxTermYears": [
+          1,
+          15
+        ],
+        "minTermRule": "1yr to 1/3 of max",
+        "altDefiniteMax1yr": true,
+        "probationEligibleYears": 5
+      },
+      "ClassB": {
+        "type": "indeterminate",
+        "maxTermYears": [
+          1,
+          25
+        ],
+        "minTermRule": "1yr to 1/3 of max",
+        "altDefiniteMax1yr": false,
+        "probationEligibleYears": 5
+      }
+    },
+    "secondFelonyOffender_70_06": {
+      "ClassE": {
+        "type": "indeterminate",
+        "maxTermYears": [
+          3,
+          4
+        ],
+        "minTermRule": "1/2 of max"
+      },
+      "ClassD": {
+        "type": "indeterminate",
+        "maxTermYears": [
+          4,
+          7
+        ],
+        "minTermRule": "1/2 of max"
+      },
+      "ClassC": {
+        "type": "indeterminate",
+        "maxTermYears": [
+          6,
+          15
+        ],
+        "minTermRule": "1/2 of max"
+      },
+      "ClassB": {
+        "type": "indeterminate",
+        "maxTermYears": [
+          9,
+          25
+        ],
+        "minTermRule": "1/2 of max"
+      }
+    },
+    "persistentFelonyOffender_70_10": {
+      "note": "Discretionary. Court MAY sentence as Class A-I. Requires separate judicial finding, not automatic from 2 priors alone.",
+      "allClasses": {
+        "type": "indeterminate",
+        "discretionary": true,
+        "possibleMinYears": [
+          15,
+          25
+        ],
+        "possibleMaxYears": "life"
+      }
+    }
+  },
+  "violentFelony": {
+    "_notes": [
+      "Determinate sentences; imposed in whole or half years per PL 70.02(2)(a) / 70.04(2), effective until September 1, 2027.",
+      "SUNSET: On September 1, 2027 these sections revert to indeterminate (NB Effective September 1, 2027 clauses). Regenerate this block after legislative update.",
+      "Post-release supervision (PRS) is mandatory on all determinate VFO sentences per PL 70.45: ClassB/C 2.5–5 years; ClassD/E 1.5–3 years. Source: PL 70.45 -- text not provided; flag for confirmation.",
+      "Class D VFO (70.02(2)(b)): sentence generally follows Class D felony provisions, but MUST be determinate when commitment to DOCCS is required (70.02(3)(c)). Range 2–7 years applies to DOCCS-commitment cases.",
+      "70.04 ClassD floor is 5 years (vs 70.02 ClassD floor of 2 years) per 70.04(3)(c). 70.04 ClassE floor is 3 years (vs 70.02 ClassE floor of 1.5 years) per 70.04(3)(d). Confirmed from provided 70.04 text.",
+      "70.08 ClassE: no provision in PL 70.08(3) for Class E violent felonies -- 70.08 only covers ClassA_II, ClassB, ClassC, ClassD. A persistent violent felony offender convicted of a ClassE VFO has no 70.08 minimum range. Flag for further legal research."
+    ],
+    "firstVFOffender_70_02": {
+      "ClassB": {
+        "type": "determinate",
+        "termYears": [
+          5,
+          25
+        ],
+        "prsYears": [
+          2.5,
+          5
+        ],
+        "wholeOrHalfYears": true
+      },
+      "ClassC": {
+        "type": "determinate",
+        "termYears": [
+          3.5,
+          15
+        ],
+        "prsYears": [
+          2.5,
+          5
+        ],
+        "wholeOrHalfYears": true
+      },
+      "ClassD": {
+        "type": "determinate",
+        "termYears": [
+          2,
+          7
+        ],
+        "prsYears": [
+          1.5,
+          3
+        ],
+        "wholeOrHalfYears": true,
+        "_note": "Applies when DOCCS commitment required per 70.02(2)(b)/(3)(c); otherwise Class D felony provisions govern"
+      },
+      "ClassE": {
+        "type": "determinate",
+        "termYears": [
+          1.5,
+          4
+        ],
+        "prsYears": [
+          1.5,
+          3
+        ],
+        "wholeOrHalfYears": true
+      }
+    },
+    "secondViolentFelonyOffender_70_04": {
+      "ClassB": {
+        "type": "determinate",
+        "termYears": [
+          10,
+          25
+        ],
+        "prsYears": [
+          2.5,
+          5
+        ],
+        "wholeOrHalfYears": true
+      },
+      "ClassC": {
+        "type": "determinate",
+        "termYears": [
+          7,
+          15
+        ],
+        "prsYears": [
+          2.5,
+          5
+        ],
+        "wholeOrHalfYears": true
+      },
+      "ClassD": {
+        "type": "determinate",
+        "termYears": [
+          5,
+          7
+        ],
+        "prsYears": [
+          1.5,
+          3
+        ],
+        "wholeOrHalfYears": true
+      },
+      "ClassE": {
+        "type": "determinate",
+        "termYears": [
+          3,
+          4
+        ],
+        "prsYears": [
+          1.5,
+          3
+        ],
+        "wholeOrHalfYears": true
+      }
+    },
+    "persistentViolentFelonyOffender_70_08": {
+      "_notes": [
+        "Indeterminate sentence; maximum term is life imprisonment per PL 70.08(2). Minimum period fixed by court within statutory range per 70.08(3). Source: verbatim from provided PL 70.08 text.",
+        "SUNSET: Two versions of 70.08(3) exist. Pre-sunset (current, effective until September 1, 2027) has higher minimums. Post-sunset (effective September 1, 2027) has lower minimums. Both encoded below.",
+        "Class E violent felony: NO provision in PL 70.08(3). Statute only covers ClassA_II, ClassB, ClassC, ClassD. Persistent violent felony offender status for ClassE VFO -- gap; flag for legal research."
+      ],
+      "preSunset_until_2027_09_01": {
+        "ClassA_II": {
+          "type": "indeterminate",
+          "maxYears": "life",
+          "minYearsFixed": 25,
+          "_ref": "70.08(3)(a) -- predatory sexual assault (130.95) or predatory sexual assault against a child (130.96)"
+        },
+        "ClassB": {
+          "type": "indeterminate",
+          "maxYears": "life",
+          "minYears": [
+            20,
+            25
+          ]
+        },
+        "ClassC": {
+          "type": "indeterminate",
+          "maxYears": "life",
+          "minYears": [
+            16,
+            25
+          ]
+        },
+        "ClassD": {
+          "type": "indeterminate",
+          "maxYears": "life",
+          "minYears": [
+            12,
+            25
+          ]
+        }
+      },
+      "postSunset_from_2027_09_01": {
+        "ClassA_II": {
+          "type": "indeterminate",
+          "maxYears": "life",
+          "minYearsFixed": 25,
+          "_ref": "70.08(3)(a) -- predatory sexual assault (130.95) or predatory sexual assault against a child (130.96)"
+        },
+        "ClassB": {
+          "type": "indeterminate",
+          "maxYears": "life",
+          "minYears": [
+            10,
+            25
+          ]
+        },
+        "ClassC": {
+          "type": "indeterminate",
+          "maxYears": "life",
+          "minYears": [
+            8,
+            25
+          ]
+        },
+        "ClassD": {
+          "type": "indeterminate",
+          "maxYears": "life",
+          "minYears": [
+            6,
+            25
+          ]
+        }
+      }
+    }
+  },
+  "hateCrimeBump": {
+    "_rule_ref": "PL 485.10",
+    "_note": "Authoritative home for hate crime sentencing bump logic. Eligibility (isHateCrimeEligible) is determined by HATECRIME_LIST in ny_penal_ontology.json. This block defines what happens to the sentence once eligibility is confirmed and hate_crime_motivated is true.",
+    "misdemeanorOrClassCDE": {
+      "effect": "one category higher than base offense classification",
+      "isSimpleBump": true
+    },
+    "ClassB": {
+      "effect": "fixed statutory minimum floors per predicate-offender status",
+      "isSimpleBump": false,
+      "requiresPredicateStatus": true,
+      "_note": "Not a simple one-class bump — court must apply 485.10(3) minimum floors based on prior record. Requires separate judicial finding."
+    },
+    "ClassA_I": {
+      "effect": "flat minimum indeterminate period of at least 20 years",
+      "isSimpleBump": false,
+      "_note": "Not a bump at all — applies a floor on the minimum period of an indeterminate sentence. See 485.10(4)."
+    }
+  },
+  "dispositions": {
+    "_notes": [
+      "Dispositions are keyed by classification level (felony/misdemeanor/violation).",
+      "Within felony, VFO status determines determinate vs indeterminate — that routing lives in the existing violentFelony/nonViolentFelony tables.",
+      "record_statement_required flags when the court must state reasons on record (required for felonies on CD and UD)."
+    ],
+    "felony": {
+      "definiteSentence": {
+        "eligible": true,
+        "maxMonths": 12,
+        "statuteRef": "PL 70.00(4)",
+        "conditions": "Court finds imprisonment necessary but indeterminate or determinate would be unduly harsh"
+      },
+      "intermittentImprisonment": {
+        "eligible": true,
+        "statuteRef": "PL 60.01(2)(a)(ii), 85.00",
+        "conditions": "Not imposing any other sentence of imprisonment; defendant not under other sentence >15 days"
+      },
+      "splitSentence": {
+        "eligible": true,
+        "probationYears": [
+          3,
+          4,
+          5
+        ],
+        "conditionalDischargeYears": 3,
+        "imprisonmentMaxMonths": 6,
+        "intermittentMaxMonths": 4,
+        "dwiImprisonmentMaxMonths": 12,
+        "statuteRef": "PL 60.01(2)(d)"
+      },
+      "probation": {
+        "eligible": true,
+        "years": [
+          3,
+          4,
+          5
+        ],
+        "statuteRef": "PL 60.01(2)(a)(i), 65.00(3)(a)(i)",
+        "conditions": "Institutional confinement not necessary; defendant needs guidance/supervision; not inconsistent with ends of justice"
+      },
+      "conditionalDischarge": {
+        "eligible": true,
+        "years": 3,
+        "statuteRef": "PL 60.01(2)(a)(i), 65.05",
+        "recordStatementRequired": true,
+        "conditions": "Neither public interest nor ends of justice served by imprisonment; probation not appropriate"
+      },
+      "unconditionalDischarge": {
+        "eligible": true,
+        "statuteRef": "PL 60.01(3)(d), 65.20(1)",
+        "recordStatementRequired": true,
+        "conditions": "No proper purpose served by imposing any condition on release"
+      }
+    },
+    "misdemeanor": {
+      "classA": {
+        "definiteSentence": {
+          "eligible": true,
+          "maxMonths": 12,
+          "statuteRef": "PL 70.15(1)"
+        },
+        "intermittentImprisonment": {
+          "eligible": true,
+          "statuteRef": "PL 85.00",
+          "conditions": "Not imposing any other sentence of imprisonment; defendant not under other sentence >15 days"
+        },
+        "splitSentence": {
+          "eligible": true,
+          "probationYears": [
+            3
+          ],
+          "conditionalDischargeYears": 3,
+          "imprisonmentMaxMonths": 6,
+          "intermittentMaxMonths": 4,
+          "statuteRef": "PL 60.01(2)(d)"
+        },
+        "probation": {
+          "eligible": true,
+          "years": [
+            3
+          ],
+          "statuteRef": "PL 65.00(3)(a)(i)"
+        },
+        "conditionalDischarge": {
+          "eligible": true,
+          "years": 3,
+          "statuteRef": "PL 65.05",
+          "recordStatementRequired": false
+        },
+        "unconditionalDischarge": {
+          "eligible": true,
+          "statuteRef": "PL 65.20(1)",
+          "recordStatementRequired": false
+        }
+      },
+      "classB": {
+        "definiteSentence": {
+          "eligible": true,
+          "maxMonths": 3,
+          "statuteRef": "PL 70.15(2)"
+        },
+        "intermittentImprisonment": {
+          "eligible": true,
+          "statuteRef": "PL 85.00"
+        },
+        "splitSentence": {
+          "eligible": true,
+          "probationYears": [
+            3
+          ],
+          "conditionalDischargeYears": 1,
+          "imprisonmentMaxMonths": 6,
+          "intermittentMaxMonths": 4,
+          "statuteRef": "PL 60.01(2)(d)"
+        },
+        "probation": {
+          "eligible": true,
+          "years": [
+            3
+          ],
+          "statuteRef": "PL 65.00(3)(a)(i)"
+        },
+        "conditionalDischarge": {
+          "eligible": true,
+          "years": 1,
+          "statuteRef": "PL 65.05"
+        },
+        "unconditionalDischarge": {
+          "eligible": true,
+          "statuteRef": "PL 65.20(1)"
+        }
+      },
+      "unclassified": {
+        "definiteSentence": {
+          "eligible": true,
+          "maxMonths": 12,
+          "statuteRef": "PL 70.15(3)",
+          "note": "As provided in the law creating the offense; not to exceed 1 year"
+        },
+        "intermittentImprisonment": {
+          "eligible": true,
+          "statuteRef": "PL 85.00"
+        },
+        "probation": {
+          "eligible": true,
+          "years": [
+            3
+          ],
+          "statuteRef": "PL 65.00"
+        },
+        "conditionalDischarge": {
+          "eligible": true,
+          "years": 3,
+          "statuteRef": "PL 65.05"
+        },
+        "unconditionalDischarge": {
+          "eligible": true,
+          "statuteRef": "PL 65.20(1)"
+        }
+      }
+    },
+    "violation": {
+      "definiteSentence": {
+        "eligible": true,
+        "maxDays": 15,
+        "statuteRef": "PL 70.15(4)"
+      },
+      "conditionalDischarge": {
+        "eligible": true,
+        "years": 1,
+        "statuteRef": "PL 65.05"
+      },
+      "unconditionalDischarge": {
+        "eligible": true,
+        "statuteRef": "PL 65.20(1)"
+      }
+    }
+  },
+  "exceptions": {
+    "_notes": [
+      "Exception paths that can override the primary sentencing disposition.",
+      "Each exception has triggering case-fact parameters (from CaseFacts) and a resulting disposition or modification."
+    ],
+    "armedFelonyOverride": {
+      "statuteRef": "PL 70.02(4)(b); CPL 1.20(41)",
+      "triggeringFactors": [
+        "plea_from_armed_felony_indictment",
+        "armed_felony_mitigating_factor",
+        "armed_felony_minor_participation",
+        "armed_felony_proof_deficiencies"
+      ],
+      "description": "If conviction resulted from plea in satisfaction of armed felony indictment, court must impose determinate sentence UNLESS one of three mitigating factors found and court finds alternate sentence consistent with public safety.",
+      "recordStatementRequired": true
+    },
+    "domesticViolenceIndeterminate": {
+      "statuteRef": "PL 60.12",
+      "triggeringFactors": [
+        "domestic_violence_by_victim"
+      ],
+      "description": "If DV by victim was a factor in causing the offense, court may impose indeterminate sentence instead of determinate.",
+      "maxTermYears": [
+        3,
+        7
+      ],
+      "minTermRule": "one_half_of_max"
+    },
+    "dwiSplitSentenceVariant": {
+      "statuteRef": "PL 60.21",
+      "triggeringFactors": [
+        "is_dwi"
+      ],
+      "description": "For DWI sentences, imprisonment in a split sentence may be up to 1 year instead of the standard 6 months."
+    }
+  },
+  "financial": {
+    "_notes": [
+      "Financial obligations keyed by classification level.",
+      "Amounts are statutory defaults; may be updated by legislative amendment."
+    ],
+    "felony": {
+      "fine": {
+        "maxAmount": 5000,
+        "altDoubleGain": true,
+        "canStandAlone": false,
+        "statuteRef": "PL 80.00(1), 60.01(2)(c)"
+      },
+      "mandatorySurcharge": {
+        "amount": 300,
+        "statuteRef": "PL 60.35(1)(a)"
+      },
+      "crimeVictimAssistanceFee": {
+        "amount": 25,
+        "statuteRef": "PL 60.35(1)(a)"
+      },
+      "dnaDatabankFee": {
+        "amount": 50,
+        "statuteRef": "Exec Law 995(7); PL 60.35(1)(a)(v)"
+      },
+      "surchargeSummons": {
+        "thresholdJailDays": 60,
+        "statuteRef": "PL 60.35(8)",
+        "description": "If jail term not exceeding 60 days, court must issue summons directing defendant to appear within 60 days if surcharge unpaid"
+      }
+    },
+    "misdemeanor": {
+      "classA": {
+        "fine": {
+          "maxAmount": 1000,
+          "altDoubleGain": true,
+          "canStandAlone": true,
+          "statuteRef": "PL 80.05(1)"
+        },
+        "mandatorySurcharge": {
+          "amount": 175,
+          "statuteRef": "PL 60.35(1)(b)"
+        },
+        "crimeVictimAssistanceFee": {
+          "amount": 25,
+          "statuteRef": "PL 60.35(1)(b)"
+        },
+        "dnaDatabankFee": {
+          "amount": 50,
+          "statuteRef": "Exec Law 995(7)"
+        }
+      },
+      "classB": {
+        "fine": {
+          "maxAmount": 500,
+          "altDoubleGain": true,
+          "canStandAlone": true,
+          "statuteRef": "PL 80.05(2)"
+        },
+        "mandatorySurcharge": {
+          "amount": 175,
+          "statuteRef": "PL 60.35(1)(b)"
+        },
+        "crimeVictimAssistanceFee": {
+          "amount": 25,
+          "statuteRef": "PL 60.35(1)(b)"
+        },
+        "dnaDatabankFee": {
+          "amount": 50,
+          "statuteRef": "Exec Law 995(7)"
+        }
+      },
+      "unclassified": {
+        "fine": {
+          "maxAmount": 1000,
+          "altDoubleGain": true,
+          "canStandAlone": true,
+          "statuteRef": "PL 80.05(3)"
+        },
+        "mandatorySurcharge": {
+          "amount": 175,
+          "statuteRef": "PL 60.35(1)(b)"
+        },
+        "crimeVictimAssistanceFee": {
+          "amount": 25,
+          "statuteRef": "PL 60.35(1)(b)"
+        },
+        "dnaDatabankFee": {
+          "amount": 50,
+          "statuteRef": "Exec Law 995(7)"
+        }
+      }
+    },
+    "violation": {
+      "fine": {
+        "maxAmount": 250,
+        "altDoubleGain": true,
+        "canStandAlone": true,
+        "statuteRef": "PL 80.05(4)"
+      },
+      "mandatorySurcharge": {
+        "amount": 75,
+        "statuteRef": "PL 60.35(1)(c)"
+      },
+      "crimeVictimAssistanceFee": {
+        "amount": 25,
+        "statuteRef": "PL 60.35(1)(c)"
+      }
+    }
+  },
+  "collateral": {
+    "_notes": [
+      "Collateral requirements beyond sentencing and financials.",
+      "DNA sample requirement is felony-gated plus enumerated misdemeanors per Exec Law 995-c(3)."
+    ],
+    "felony": {
+      "dnaSampleRequired": {
+        "required": true,
+        "statuteRef": "Exec Law 995-c(3)"
+      }
+    },
+    "misdemeanor": {
+      "dnaSampleRequired": {
+        "required": false,
+        "statuteRef": "Exec Law 995-c(3)",
+        "note": "Only for enumerated sex/offense misdemeanors — extend when those are added"
+      }
+    },
+    "violation": {
+      "dnaSampleRequired": {
+        "required": false,
+        "statuteRef": "Exec Law 995-c(3)"
+      }
+    }
+  },
+  "restitution": {
+    "statuteRef": "PL 60.27(1); CPL 420.10(8)",
+    "considerationRequired": true,
+    "collectionSurchargePercent": 5,
+    "additionalSurchargeMaxPercent": 10,
+    "triggeringFactor": "victim_seeking_restitution",
+    "description": "Court must consider ordering restitution; if not ordered, must state reasons on record. If ordered, 5% collection surcharge added; up to 10% additional surcharge upon filing by collection agency."
+  }
+}
