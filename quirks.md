@@ -2,10 +2,10 @@
 
 ## §120.35 — Promoting a suicide attempt; when punishable as attempt to commit murder
 
-- Not a standalone offense — it's a conditional/limiting rule layered on top of attempt to commit murder (§125.25).
-- Only applies when the conduct also constitutes promoting a suicide attempt (§120.30) AND the defendant used duress or deception.
-- Entered as: `isAttempt=True`, `attemptOf=125.25` → classification auto-resolves to `ClassB_Felony` (A9 branch 3: attempt of Class A-I → Class B).
-- The §120.30 linkage and duress/deception requirement live in `elements` but aren't formally modeled. Needs a "conditional applicability" concept the ontology doesn't have yet.
+- **Do not add to the system.** This is not a standalone offense — it's a conditional/limiting rule.
+- It says: when conduct constitutes both promoting a suicide attempt (§120.30) AND attempt to commit murder (§125.25), you can't convict of attempt to commit murder unless duress or deception was used.
+- It's a merger/proviso rule, not an element-defining statute. The actual offense is either §120.30 (promoting a suicide attempt) or attempt of §125.25 (attempted murder) — both are separate entries.
+- If we ever need to model the duress/deception limitation, it would be as a condition on the attempted murder conviction, not as an offense entry.
 
 ## General: attempted classification auto-resolution
 
