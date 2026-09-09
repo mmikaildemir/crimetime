@@ -57,39 +57,54 @@ def offenses_tab():
 
     # --- Add new offense ---
     with st.expander("Add new offense", expanded=False):
-        with st.form("add_offense"):
-            col1, col2 = st.columns(2)
-            with col1:
-                new_section = st.text_input("Section *", placeholder="e.g. 120.02")
-                new_name = st.text_input("Name *", placeholder="e.g. Reckless assault of a child")
-            with col2:
-                new_article = st.number_input("Article", min_value=0, value=120)
-                new_class = st.selectbox("Classification", CLASSIFICATIONS)
-            new_elements = st.text_area("Elements", placeholder="Describe the elements of the offense...")
-            new_attempt = st.checkbox("Is this an attempt of another offense?")
-            new_attempt_of = st.text_input("Attempt of (section)", placeholder="e.g. 125.25") if new_attempt else ""
-            new_conspiracy = st.checkbox("Is this a conspiracy of another offense?")
-            new_conspiracy_of = st.text_input("Conspiracy of (section)", placeholder="e.g. 125.25") if new_conspiracy else ""
-            if st.form_submit_button("Add offense", type="primary"):
-                if not new_section or not new_name:
-                    st.error("Section and name are required.")
-                elif new_section in offenses:
-                    st.error(f"Section {new_section} already exists.")
-                else:
-                    offenses[new_section] = {
-                        "article": int(new_article),
-                        "section": new_section,
-                        "name": new_name,
-                        "classification": new_class,
-                        "elements": new_elements if new_elements else None,
-                        "isAttempt": new_attempt,
-                        "attemptOf": new_attempt_of if new_attempt else None,
-                        "isConspiracy": new_conspiracy,
-                        "conspiracyOf": new_conspiracy_of if new_conspiracy else None,
-                    }
-                    _save(LISTS_PATH, data)
-                    st.success(f"Added §{new_section} — {new_name}")
-                    st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            new_section = st.text_input("Section *", placeholder="e.g. 120.02", key="add_section")
+            new_name = st.text_input("Name *", placeholder="e.g. Reckless assault of a child", key="add_name")
+        with col2:
+            new_article = st.number_input("Article", min_value=0, value=120, key="add_article")
+            new_class = st.selectbox("Classification", CLASSIFICATIONS, key="add_class")
+
+        # Live preview of derived flags (auto-resolved from section + classification)
+        if new_section and new_class:
+            from crimetime.resolvers import (
+                is_vfo, is_smf_eligible, is_hatecrime_eligible,
+                has_predicate_exposure, is_yo_eligible, is_crime,
+            )
+            st.caption("**Auto-resolved flags** (computed from lists.json — no manual entry needed):")
+            pcol1, pcol2, pcol3, pcol4, pcol5 = st.columns(5)
+            pcol1.metric("VFO", str(is_vfo(new_section, new_class)))
+            pcol2.metric("SMF", str(is_smf_eligible(new_section, new_class)))
+            pcol3.metric("Hate Crime", str(is_hatecrime_eligible(new_section)))
+            pcol4.metric("Predicate Exposure", str(has_predicate_exposure(new_class)))
+            pcol5.metric("YO Eligible", str(is_yo_eligible(new_class)))
+
+        new_elements = st.text_area("Elements", placeholder="Describe the elements of the offense...", key="add_elements")
+        new_attempt = st.checkbox("Is this an attempt of another offense?", key="add_attempt")
+        new_attempt_of = st.text_input("Attempt of (section)", placeholder="e.g. 125.25", key="add_attempt_of") if new_attempt else ""
+        new_conspiracy = st.checkbox("Is this a conspiracy of another offense?", key="add_conspiracy")
+        new_conspiracy_of = st.text_input("Conspiracy of (section)", placeholder="e.g. 125.25", key="add_conspiracy_of") if new_conspiracy else ""
+
+        if st.button("Add offense", type="primary", key="add_btn"):
+            if not new_section or not new_name:
+                st.error("Section and name are required.")
+            elif new_section in offenses:
+                st.error(f"Section {new_section} already exists.")
+            else:
+                offenses[new_section] = {
+                    "article": int(new_article),
+                    "section": new_section,
+                    "name": new_name,
+                    "classification": new_class,
+                    "elements": new_elements if new_elements else None,
+                    "isAttempt": new_attempt,
+                    "attemptOf": new_attempt_of if new_attempt else None,
+                    "isConspiracy": new_conspiracy,
+                    "conspiracyOf": new_conspiracy_of if new_conspiracy else None,
+                }
+                _save(LISTS_PATH, data)
+                st.success(f"Added §{new_section} — {new_name}")
+                st.rerun()
 
     # --- List existing offenses ---
     st.subheader(f"Existing offenses ({len(offenses)})")
@@ -105,6 +120,20 @@ def offenses_tab():
 
     for section, off in sorted_offenses:
         with st.expander(f"§{section} — {off.get('name', '?')} ({off.get('classification', '?')})"):
+            # Show current auto-resolved flags (read-only)
+            _classification = off.get("classification", "Violation")
+            from crimetime.resolvers import (
+                is_vfo, is_smf_eligible, is_hatecrime_eligible,
+                has_predicate_exposure, is_yo_eligible,
+            )
+            fcol1, fcol2, fcol3, fcol4, fcol5 = st.columns(5)
+            fcol1.metric("VFO", str(is_vfo(section, _classification)))
+            fcol2.metric("SMF", str(is_smf_eligible(section, _classification)))
+            fcol3.metric("Hate Crime", str(is_hatecrime_eligible(section)))
+            fcol4.metric("Predicate", str(has_predicate_exposure(_classification)))
+            fcol5.metric("YO Elig.", str(is_yo_eligible(_classification)))
+            st.caption("Flags above auto-resolve from lists.json — no manual entry needed.")
+
             with st.form(f"edit_{section}"):
                 col1, col2 = st.columns(2)
                 with col1:
