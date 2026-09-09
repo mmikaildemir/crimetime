@@ -63,13 +63,32 @@ def offenses_tab():
             new_name = st.text_input("Name *", placeholder="e.g. Reckless assault of a child", key="add_name")
         with col2:
             new_article = st.number_input("Article", min_value=0, value=120, key="add_article")
-            new_class = st.selectbox("Classification", CLASSIFICATIONS, key="add_class")
+
+        new_attempt = st.checkbox("Is this an attempt of another offense?", key="add_attempt")
+        new_attempt_of = None
+        if new_attempt:
+            new_attempt_of = st.text_input("Attempt of (target section) *", placeholder="e.g. 125.25", key="add_attempt_of")
+
+        # Classification: auto-resolved if attempt, manual otherwise
+        from crimetime.resolvers import resolve_attempt_classification
+        if new_attempt and new_attempt_of:
+            target_off = offenses.get(new_attempt_of)
+            if target_off:
+                target_cls = target_off.get("classification", "Violation")
+                resolved_cls = resolve_attempt_classification(new_attempt_of, target_cls)
+                new_class = resolved_cls
+                st.info(f"**Auto-resolved classification:** `{resolved_cls}` (from target §{new_attempt_of} — {target_off.get('name', '?')})")
+            else:
+                st.warning(f"Target §{new_attempt_of} not found in offenses. Add the target offense first.")
+                new_class = st.selectbox("Classification (manual — target not found)", CLASSIFICATIONS, key="add_class_fallback")
+        else:
+            new_class = st.selectbox("Classification *", CLASSIFICATIONS, key="add_class")
 
         # Live preview of derived flags (auto-resolved from section + classification)
         if new_section and new_class:
             from crimetime.resolvers import (
                 is_vfo, is_smf_eligible, is_hatecrime_eligible,
-                has_predicate_exposure, is_yo_eligible, is_crime,
+                has_predicate_exposure, is_yo_eligible,
             )
             st.caption("**Auto-resolved flags** (computed from lists.json — no manual entry needed):")
             pcol1, pcol2, pcol3, pcol4, pcol5 = st.columns(5)
@@ -80,14 +99,14 @@ def offenses_tab():
             pcol5.metric("YO Eligible", str(is_yo_eligible(new_class)))
 
         new_elements = st.text_area("Elements", placeholder="Describe the elements of the offense...", key="add_elements")
-        new_attempt = st.checkbox("Is this an attempt of another offense?", key="add_attempt")
-        new_attempt_of = st.text_input("Attempt of (section)", placeholder="e.g. 125.25", key="add_attempt_of") if new_attempt else ""
         new_conspiracy = st.checkbox("Is this a conspiracy of another offense?", key="add_conspiracy")
         new_conspiracy_of = st.text_input("Conspiracy of (section)", placeholder="e.g. 125.25", key="add_conspiracy_of") if new_conspiracy else ""
 
         if st.button("Add offense", type="primary", key="add_btn"):
             if not new_section or not new_name:
                 st.error("Section and name are required.")
+            elif new_attempt and not new_attempt_of:
+                st.error("Attempt target section is required for attempts.")
             elif new_section in offenses:
                 st.error(f"Section {new_section} already exists.")
             else:
@@ -147,7 +166,14 @@ def offenses_tab():
                     )
                     is_attempt = st.checkbox("Is attempt", value=off.get("isAttempt", False))
 
-                attempt_of = st.text_input("Attempt of (section)", value=off.get("attemptOf") or "") if is_attempt else ""
+                attempt_of = st.text_input("Attempt of (target section)", value=off.get("attemptOf") or "") if is_attempt else ""
+                if is_attempt and attempt_of:
+                    from crimetime.resolvers import resolve_attempt_classification
+                    target_off = offenses.get(attempt_of)
+                    if target_off:
+                        target_cls = target_off.get("classification", "Violation")
+                        resolved = resolve_attempt_classification(attempt_of, target_cls)
+                        st.info(f"**Auto-resolved classification:** `{resolved}` (from target §{attempt_of} — {target_off.get('name', '?')}) — select this on the left.")
                 is_conspiracy = st.checkbox("Is conspiracy", value=off.get("isConspiracy", False))
                 conspiracy_of = st.text_input("Conspiracy of (section)", value=off.get("conspiracyOf") or "") if is_conspiracy else ""
                 elements = st.text_area("Elements", value=off.get("elements") or "")
@@ -159,6 +185,12 @@ def offenses_tab():
                     deleted = st.form_submit_button("Delete")
 
                 if saved:
+                    # Auto-resolve classification for attempts
+                    if is_attempt and attempt_of:
+                        target_off = offenses.get(attempt_of)
+                        if target_off:
+                            target_cls = target_off.get("classification", "Violation")
+                            classification = resolve_attempt_classification(attempt_of, target_cls)
                     off["name"] = name
                     off["article"] = int(article)
                     off["classification"] = classification
