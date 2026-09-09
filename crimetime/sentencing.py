@@ -459,6 +459,38 @@ def _generate_violation_alternatives() -> list[Disposition]:
 
 
 # ---------------------------------------------------------------------------
+# Conditional classification resolver (offense-intrinsic escalation)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_conditional_classification(
+    conditional: dict, case_facts: CaseFacts
+) -> str:
+    """Resolve conditional classification rules from an offense's conditionalClassification block.
+
+    Supports conditions: "in" (field value in list), "true" (field is truthy), "gt" (field > value)
+    Falls back to conditional["fallback"] if no rule matches.
+    """
+    for rule in conditional.get("rules", []):
+        field_name = rule["field"]
+        condition = rule.get("condition", "in")
+        field_value = getattr(case_facts, field_name, None)
+
+        if condition == "in":
+            if field_value in rule.get("values", []):
+                return rule["resulting_classification"]
+        elif condition == "true":
+            if field_value:
+                return rule["resulting_classification"]
+        elif condition == "gt":
+            threshold = rule.get("values", [0])[0]
+            if field_value is not None and field_value > threshold:
+                return rule["resulting_classification"]
+
+    return conditional.get("fallback", "Violation")
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -497,6 +529,16 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
         )
     else:
         effective_classification = classification
+        vfo = is_vfo(section, effective_classification)
+
+    # Handle conditional classification (offense-intrinsic escalation)
+    # e.g. §130.86 luring a child: E→C/D based on intended offense class
+    # e.g. §225.90 gaming manipulation: A misdemeanor→E felony if prior within 5 years
+    conditional = offense.get("conditionalClassification")
+    if conditional:
+        effective_classification = _resolve_conditional_classification(
+            conditional, case_facts
+        )
         vfo = is_vfo(section, effective_classification)
 
     # Primary disposition + PRS

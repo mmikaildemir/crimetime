@@ -804,6 +804,159 @@
       "attemptOf": null,
       "isConspiracy": false,
       "conspiracyOf": null
+    },
+    "120.19": {
+      "article": 120,
+      "section": "120.19",
+      "name": "Assault on a retail worker",
+      "classification": "ClassE_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "120.30": {
+      "article": 120,
+      "section": "120.30",
+      "name": "Promoting a suicide attempt",
+      "classification": "ClassE_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "120.45": {
+      "article": 120,
+      "section": "120.45",
+      "name": "Stalking in the fourth degree",
+      "classification": "ClassB_Misdemeanor",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "120.50": {
+      "article": 120,
+      "section": "120.50",
+      "name": "Stalking in the third degree",
+      "classification": "ClassA_Misdemeanor",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "120.55": {
+      "article": 120,
+      "section": "120.55",
+      "name": "Stalking in the second degree",
+      "classification": "ClassE_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "120.60": {
+      "article": 120,
+      "section": "120.60",
+      "name": "Stalking in the first degree",
+      "classification": "ClassD_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null
+    },
+    "130.86": {
+      "article": 130,
+      "section": "130.86",
+      "name": "Luring a child",
+      "classification": "ClassE_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null,
+      "conditionalClassification": {
+        "rules": [
+          {
+            "field": "intended_underlying_offense_class",
+            "condition": "in",
+            "values": [
+              "ClassA_I_Felony",
+              "ClassA_II_Felony"
+            ],
+            "resulting_classification": "ClassC_Felony"
+          },
+          {
+            "field": "intended_underlying_offense_class",
+            "condition": "in",
+            "values": [
+              "ClassB_Felony",
+              "ClassB_Violent_Felony"
+            ],
+            "resulting_classification": "ClassD_Felony"
+          }
+        ],
+        "fallback": "ClassE_Felony",
+        "prompt_fields": [
+          "intended_underlying_offense_class"
+        ]
+      }
+    },
+    "225.90": {
+      "article": 225,
+      "section": "225.90",
+      "name": "Manipulation of gaming outcomes at an authorized gaming establishment",
+      "classification": "ClassA_Misdemeanor",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null,
+      "conditionalClassification": {
+        "rules": [
+          {
+            "field": "prior_conviction_same_section_within_years",
+            "condition": "true",
+            "values": [],
+            "resulting_classification": "ClassE_Felony"
+          }
+        ],
+        "fallback": "ClassA_Misdemeanor",
+        "prompt_fields": [
+          "prior_conviction_same_section_within_years"
+        ]
+      }
+    },
+    "225.95": {
+      "article": 225,
+      "section": "225.95",
+      "name": "Unlawful manufacture, sale, distribution, marking, altering or modification of equipment and devices associated with gaming",
+      "classification": "ClassA_Misdemeanor",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null,
+      "conditionalClassification": {
+        "rules": [
+          {
+            "field": "prior_conviction_same_section_within_years",
+            "condition": "true",
+            "values": [],
+            "resulting_classification": "ClassE_Felony"
+          }
+        ],
+        "fallback": "ClassA_Misdemeanor",
+        "prompt_fields": [
+          "prior_conviction_same_section_within_years"
+        ]
+      }
     }
   }
 }

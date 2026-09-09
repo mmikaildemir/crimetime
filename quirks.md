@@ -13,7 +13,20 @@
 - Target offense must already exist in the data. Add the base offense first, then add the attempt.
 - VFO status for the attempt is resolved via A11 (three-way check against VFO_LIST: named carve-out, class-level downgrade, or lesser-included).
 
-## General: derived flags need only (section, classification)
+## Conditional classification (offense-intrinsic escalation)
+
+Some offenses have a base classification that escalates based on a case fact. Modeled via `conditionalClassification` block on the offense entry in `data/lists.json`.
+
+### §130.86 — Luring a child
+- Base: Class E felony. If intended offense was Class A → Class C. If Class B → Class D. Fallback: Class E.
+- Field: `intended_underlying_offense_class`
+
+### §225.90, §225.95 — Gaming manipulation / manufacture
+- Base: Class A misdemeanor. If prior conviction of same offense within 5 years → Class E felony. Fallback: Class A misdemeanor.
+- Field: `prior_conviction_same_section_within_years`
+
+### §260.35 — Misrepresentation by caregiver
+- Classification stays Class A misdemeanor, but if imprisonment imposed, max 6 months (not 12). This is a sentence cap, not a classification change — not yet modeled as conditionalClassification. Flag for later.
 
 - VFO, SMF, Hate Crime, Predicate Exposure, YO Eligible, 70.04-reachable, 70.06-reachable — all computed at runtime from `(section, classification)` against the already-populated lists in `data/lists.json`.
 - The Lists tab is only for when the legislature amends a source statute (PL 70.02, 130.91, or 485.05).

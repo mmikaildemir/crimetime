@@ -102,13 +102,46 @@ def offenses_tab():
         new_conspiracy = st.checkbox("Is this a conspiracy of another offense?", key="add_conspiracy")
         new_conspiracy_of = st.text_input("Conspiracy of (section)", placeholder="e.g. 125.25", key="add_conspiracy_of") if new_conspiracy else ""
 
+        # Conditional classification (optional — for offenses like §130.86, §225.90)
+        with st.expander("Conditional classification (optional)", expanded=False):
+            st.caption("For offenses whose classification changes based on a case fact (e.g. §130.86 luring a child, §225.90 gaming manipulation)")
+            has_conditional = st.checkbox("This offense has conditional classification", key="add_has_conditional")
+            conditional_rules = []
+            conditional_fallback = new_class if new_class else "Violation"
+            if has_conditional:
+                conditional_fallback = st.selectbox("Fallback classification (default)", CLASSIFICATIONS, key="add_cond_fallback")
+                num_rules = st.number_input("Number of rules", min_value=1, max_value=10, value=1, key="add_cond_num")
+                for i in range(int(num_rules)):
+                    st.markdown(f"**Rule {i+1}**")
+                    rc_col1, rc_col2 = st.columns(2)
+                    with rc_col1:
+                        rc_field = st.selectbox(
+                            "Field (case fact to check)",
+                            [
+                                "intended_underlying_offense_class",
+                                "prior_conviction_same_section_within_years",
+                            ],
+                            key=f"add_cond_field_{i}",
+                        )
+                        rc_condition = st.selectbox("Condition", ["in", "true", "gt"], key=f"add_cond_cond_{i}")
+                    with rc_col2:
+                        rc_values = st.text_input("Values (comma-separated)", placeholder="e.g. ClassA_I_Felony, ClassA_II_Felony", key=f"add_cond_vals_{i}")
+                        rc_result = st.selectbox("Resulting classification", CLASSIFICATIONS, key=f"add_cond_result_{i}")
+                    conditional_rules.append({
+                        "field": rc_field,
+                        "condition": rc_condition,
+                        "values": [v.strip() for v in rc_values.split(",") if v.strip()] if rc_values else [],
+                        "resulting_classification": rc_result,
+                    })
+                st.caption(f"Prompt fields: {[r['field'] for r in conditional_rules]}")
+
         if st.button("Add offense", type="primary", key="add_btn"):
             if not new_section:
                 st.error("Section is required.")
             elif new_section in offenses:
                 st.error(f"Section {new_section} already exists.")
             else:
-                offenses[new_section] = {
+                entry = {
                     "article": int(new_article),
                     "section": new_section,
                     "name": new_name if new_name else "",
@@ -119,6 +152,13 @@ def offenses_tab():
                     "isConspiracy": new_conspiracy,
                     "conspiracyOf": new_conspiracy_of if new_conspiracy else None,
                 }
+                if has_conditional and conditional_rules:
+                    entry["conditionalClassification"] = {
+                        "rules": conditional_rules,
+                        "fallback": conditional_fallback,
+                        "prompt_fields": [r["field"] for r in conditional_rules],
+                    }
+                offenses[new_section] = entry
                 _save(LISTS_PATH, data)
                 st.success(f"Added §{new_section}")
                 st.rerun()
@@ -136,7 +176,10 @@ def offenses_tab():
         ]
 
     for section, off in sorted_offenses:
-        with st.expander(f"§{section} — {off.get('name', '?')} ({off.get('classification', '?')})"):
+        label = f"§{section} — {off.get('name', '?')} ({off.get('classification', '?')})"
+        if off.get("conditionalClassification"):
+            label += " [conditional]"
+        with st.expander(label):
             # Show current auto-resolved flags (read-only)
             _classification = off.get("classification", "Violation")
             from crimetime.resolvers import (
@@ -150,6 +193,14 @@ def offenses_tab():
             fcol4.metric("Predicate", str(has_predicate_exposure(_classification)))
             fcol5.metric("YO Elig.", str(is_yo_eligible(_classification)))
             st.caption("Flags above auto-resolve from lists.json — no manual entry needed.")
+
+            # Show conditional classification if present
+            cond = off.get("conditionalClassification")
+            if cond:
+                st.info("**Conditional classification rules:**")
+                for rule in cond.get("rules", []):
+                    st.caption(f"  If `{rule['field']}` {rule.get('condition', 'in')} {rule.get('values', [])} → `{rule['resulting_classification']}`")
+                st.caption(f"  Fallback: `{cond.get('fallback', '?')}`")
 
             with st.form(f"edit_{section}"):
                 col1, col2 = st.columns(2)
