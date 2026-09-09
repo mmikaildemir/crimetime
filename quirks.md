@@ -17,9 +17,10 @@
 
 Some offenses have a base classification that escalates based on a case fact. Modeled via `conditionalClassification` block on the offense entry in `data/lists.json`.
 
-### §130.86 — Luring a child
+### §120.70 — Luring a child
 - Base: Class E felony. If intended offense was Class A → Class C. If Class B → Class D. Fallback: Class E.
 - Field: `intended_underlying_offense_class`
+- Note: §120.70 (not §130.86 — confirmed via NYS Open Legislation API)
 
 ### §225.90, §225.95 — Gaming manipulation / manufacture
 - Base: Class A misdemeanor. If prior conviction of same offense within 5 years → Class E felony. Fallback: Class A misdemeanor.

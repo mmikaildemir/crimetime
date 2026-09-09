@@ -871,43 +871,6 @@
       "isConspiracy": false,
       "conspiracyOf": null
     },
-    "130.86": {
-      "article": 130,
-      "section": "130.86",
-      "name": "Luring a child",
-      "classification": "ClassE_Felony",
-      "elements": null,
-      "isAttempt": false,
-      "attemptOf": null,
-      "isConspiracy": false,
-      "conspiracyOf": null,
-      "conditionalClassification": {
-        "rules": [
-          {
-            "field": "intended_underlying_offense_class",
-            "condition": "in",
-            "values": [
-              "ClassA_I_Felony",
-              "ClassA_II_Felony"
-            ],
-            "resulting_classification": "ClassC_Felony"
-          },
-          {
-            "field": "intended_underlying_offense_class",
-            "condition": "in",
-            "values": [
-              "ClassB_Felony",
-              "ClassB_Violent_Felony"
-            ],
-            "resulting_classification": "ClassD_Felony"
-          }
-        ],
-        "fallback": "ClassE_Felony",
-        "prompt_fields": [
-          "intended_underlying_offense_class"
-        ]
-      }
-    },
     "225.90": {
       "article": 225,
       "section": "225.90",
@@ -955,6 +918,43 @@
         "fallback": "ClassA_Misdemeanor",
         "prompt_fields": [
           "prior_conviction_same_section_within_years"
+        ]
+      }
+    },
+    "120.70": {
+      "article": 120,
+      "section": "120.70",
+      "name": "Luring a child",
+      "classification": "ClassE_Felony",
+      "elements": null,
+      "isAttempt": false,
+      "attemptOf": null,
+      "isConspiracy": false,
+      "conspiracyOf": null,
+      "conditionalClassification": {
+        "rules": [
+          {
+            "field": "intended_underlying_offense_class",
+            "condition": "in",
+            "values": [
+              "ClassA_I_Felony",
+              "ClassA_II_Felony"
+            ],
+            "resulting_classification": "ClassC_Felony"
+          },
+          {
+            "field": "intended_underlying_offense_class",
+            "condition": "in",
+            "values": [
+              "ClassB_Felony",
+              "ClassB_Violent_Felony"
+            ],
+            "resulting_classification": "ClassD_Felony"
+          }
+        ],
+        "fallback": "ClassE_Felony",
+        "prompt_fields": [
+          "intended_underlying_offense_class"
         ]
       }
     }
