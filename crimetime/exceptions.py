@@ -3,7 +3,7 @@
 Covers outputs #3, #4, #5, #9 from the reference example:
   - Armed felony override (PL 70.02(4)(b))
   - Record statement requirement (when determinate not imposed)
-  - Domestic violence indeterminate (PL 60.12)
+  - Domestic violence indeterminate (PL 60.12) — class-specific determinate alternatives
   - DWI split sentence variant (PL 60.21)
 """
 
@@ -12,6 +12,29 @@ from __future__ import annotations
 from . import reference
 from .models import Disposition, DispositionType, ExceptionPath, ExceptionType, TermRange, TermUnit
 from .resolvers import is_felony
+
+
+# Offenses excluded from the DV alternative per PL 60.12(1)
+_DV_EXCLUDED_SECTIONS = {
+    "125.25",  # murder 2nd (subd 5 specifically, but section-level exclusion)
+    "125.26",  # aggravated murder
+    "125.27",  # murder 1st
+    # Article 490 terrorism sections excluded
+    "490.05", "490.10", "490.15", "490.20", "490.25", "490.30", "490.35",
+    "490.37", "490.40", "490.45", "490.47", "490.50", "490.55",
+}
+
+# Class-specific determinate ranges for DV alternative per PL 60.12(2)
+_DV_DETERMINATE_RANGES = {
+    "ClassB_Felony": [1, 5],
+    "ClassC_Felony": [1, 3.5],
+    "ClassD_Felony": [1, 2],
+    "ClassE_Felony": [1, 1.5],
+    "ClassB_Violent_Felony": [1, 5],
+    "ClassC_Violent_Felony": [1, 3.5],
+    "ClassD_Violent_Felony": [1, 2],
+    "ClassE_Violent_Felony": [1, 1.5],
+}
 
 
 def generate_armed_felony_exception(
@@ -72,33 +95,46 @@ def generate_record_statement_exception(
 
 def generate_domestic_violence_exception(
     classification: str,
+    section: str,
     domestic_violence_by_victim: bool,
 ) -> ExceptionPath | None:
-    """Generate the domestic-violence indeterminate exception (PL 60.12).
+    """Generate the domestic-violence alternative sentence exception (PL 60.12).
 
-    If DV by the victim was a factor in causing the offense, the court may
-    impose an indeterminate sentence instead of a determinate one.
-    Max term: 3–7 years; min term: one-half the maximum.
+    Per 60.12(1): excludes §125.25, §125.26, §125.27, Article 490, and
+    sex-offender-registration offenses. Per 60.12(2): court may impose a
+    class-specific determinate alternative (B 1-5, C 1-3.5, D 1-2, E 1-1.5),
+    a definite ≤1yr, or probation.
     """
     if not domestic_violence_by_victim:
         return None
     if not is_felony(classification):
         return None
+    if section in _DV_EXCLUDED_SECTIONS:
+        return None
 
     exc = reference.get_exceptions_table()["domesticViolenceIndeterminate"]
 
+    # Class-specific determinate range per 60.12(2)
+    det_range = _DV_DETERMINATE_RANGES.get(classification)
+    if det_range is None:
+        # Class A felonies (60.12(3)): 5-15yr determinate alternative
+        if classification in ("ClassA_I_Felony", "ClassA_II_Felony"):
+            det_range = [5, 15]
+        else:
+            return None
+
     return ExceptionPath(
         type=ExceptionType.DOMESTIC_VIOLENCE_INDETERMINATE,
-        label="Domestic violence exception — court may impose indeterminate sentence",
+        label="Domestic violence exception — court may impose alternative determinate sentence",
         description=exc["description"],
         statute_refs=[exc["statuteRef"]],
         triggering_factors=["domestic_violence_by_victim"],
         resulting_disposition=Disposition(
-            type=DispositionType.INDETERMINATE,
-            label="Indeterminate sentence per domestic violence exception",
+            type=DispositionType.DETERMINATE,
+            label=f"Determinate sentence of {det_range[0]}–{det_range[1]} years (DV alternative per 60.12(2))",
             statute_refs=[exc["statuteRef"]],
-            term=TermRange(min_value=3, max_value=7, unit=TermUnit.YEARS),
-            conditions="Minimum term must be one-half the maximum term; max term not less than 3 nor more than 7 years",
+            term=TermRange(min_value=det_range[0], max_value=det_range[1], unit=TermUnit.YEARS),
+            conditions="Court may also impose definite ≤1yr or probation per 60.12(2). Excludes 125.25/26/27, Art 490, sex registration offenses per 60.12(1).",
         ),
     )
 
@@ -106,22 +142,28 @@ def generate_domestic_violence_exception(
 def generate_dwi_exception(
     is_dwi: bool,
 ) -> ExceptionPath | None:
-    """Generate the DWI split-sentence variant exception (PL 60.21).
+    """Generate the DWI disposition exception (PL 60.21).
 
-    For DWI sentences, the imprisonment portion of a split sentence may be
-    up to 1 year instead of the standard 6 months.
+    For VTL 1192(2)/(2-a)/(3) DWI convictions, the court may impose imprisonment
+    per Article 70 AND must impose probation or conditional discharge per 65.00
+    AND must order ignition interlock device installation. The probation/CD runs
+    consecutively to any imprisonment and commences upon release.
     """
     if not is_dwi:
         return None
 
-    exc = reference.get_exceptions_table()["dwiSplitSentenceVariant"]
-
     return ExceptionPath(
         type=ExceptionType.DWI_SPLIT_SENTENCE_VARIANT,
-        label="DWI split sentence variant — imprisonment up to 1 year",
-        description=exc["description"],
-        statute_refs=[exc["statuteRef"]],
+        label="DWI sentence — imprisonment + probation/CD + ignition interlock",
+        description="Per PL 60.21: court may impose imprisonment per Art 70, must impose probation or conditional discharge per 65.00, and must order ignition interlock device. Probation/CD runs consecutively to imprisonment and commences upon release.",
+        statute_refs=["PL 60.21"],
         triggering_factors=["is_dwi"],
+        resulting_disposition=Disposition(
+            type=DispositionType.PROBATION,
+            label="Probation or conditional discharge consecutive to imprisonment + ignition interlock",
+            statute_refs=["PL 60.21, 65.00"],
+            conditions="Must run consecutively to any imprisonment; ignition interlock device required",
+        ),
     )
 
 
@@ -161,6 +203,7 @@ def generate_all_exceptions(
     # Domestic violence exception
     dv = generate_domestic_violence_exception(
         classification=classification,
+        section=case_facts.section,
         domestic_violence_by_victim=case_facts.domestic_violence_by_victim,
     )
     if dv is not None:

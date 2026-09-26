@@ -141,12 +141,13 @@ class TestPL12002WithExceptions:
         assert len(record) == 1
 
     def test_domestic_violence_exception(self, output):
-        """#5: DV indeterminate exception with 3–7 year range."""
+        """#5: DV alternative determinate per 60.12(2) — Class D: 1-2yr."""
         dv = [e for e in output.exception_paths if e.type.value == "domestic_violence_indeterminate"]
         assert len(dv) == 1
         assert dv[0].resulting_disposition is not None
-        assert dv[0].resulting_disposition.term.min_value == 3
-        assert dv[0].resulting_disposition.term.max_value == 7
+        # §120.02 is Class D VFO → 60.12(2)(c): 1-2yr determinate alternative
+        assert dv[0].resulting_disposition.term.min_value == 1
+        assert dv[0].resulting_disposition.term.max_value == 2
 
     def test_dwi_exception(self, output):
         """#9: DWI split sentence variant appears."""

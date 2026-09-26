@@ -1228,16 +1228,26 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
         m.modifier_type == "terrorism" and m.branch == "life_without_parole"
         for m in modifiers_applied
     )
+    # Attempt-specific overrides (PL 70.00(3)(a)(i)(C)): attempted murder 1st
+    # and attempted aggravated murder get 20-40yr min. Keyed as "attempt_<section>".
+    if not override and case_facts.is_attempt and case_facts.attempt_of_section:
+        override = offense_overrides.get(f"attempt_{case_facts.attempt_of_section}")
     if override and not has_terrorism_lwop:
-        if override.get("lifeWithoutParole"):
+        # Check subdivision-level override first
+        subd_override = None
+        if case_facts.subdivision and "subdivisions" in override:
+            subd_override = override["subdivisions"].get(case_facts.subdivision)
+        effective_override = subd_override or override
+
+        if effective_override.get("lifeWithoutParole"):
             dispositions = [Disposition(
                 type=DispositionType.LIFE_WITHOUT_PAROLE,
                 label="Life imprisonment without parole",
-                statute_refs=[override.get("_ref", "PL 70.00(3)(a)")],
-                conditions=f"Offense-specific override for §{section}",
+                statute_refs=[effective_override.get("_ref", "PL 70.00(3)(a)")],
+                conditions=f"Offense-specific override for §{section}" + (f" subd {case_facts.subdivision}" if case_facts.subdivision else ""),
             )]
-        elif "minYears" in override and dispositions:
-            min_override = override["minYears"]
+        elif "minYears" in effective_override and dispositions:
+            min_override = effective_override["minYears"]
             primary = dispositions[0]
             if primary.term:
                 primary.term = TermRange(
