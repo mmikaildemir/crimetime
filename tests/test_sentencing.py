@@ -649,3 +649,50 @@ class TestNonVFOWithViolentPriorStatus:
         primary = out.available_dispositions[0]
         # 70.10 persistent: 15yr min to life
         assert primary.term.min_value == 15
+
+
+class TestVFOWithNonVFOPriorStatus:
+    """VFOs with non-VFO prior statuses (70.06, 70.10) must fall back to
+    70.02 first-offender determinate, since 70.06/70.10 prescribe
+    indeterminate sentences that conflict with 70.02(3)'s determinate
+    requirement for VFOs."""
+
+    def test_vfo_with_70_06_falls_back_to_first_offender(self):
+        """§120.10 (Class B VFO) + 70.06 → 70.02 first offender (5-25yr)."""
+        facts = CaseFacts(
+            section="120.10",
+            prior_record_status=PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
+            defendant_age_category=AgeCategory.ADULT,
+        )
+        out = resolve("120.10", facts)
+        det = [d for d in out.available_dispositions if d.type.value == "determinate"]
+        assert len(det) == 1
+        # 70.02 first-offender Class B: 5-25yr
+        assert det[0].term.min_value == 5
+        assert det[0].term.max_value == 25
+
+    def test_vfo_with_70_10_falls_back_to_first_offender(self):
+        """§120.10 (Class B VFO) + 70.10 → 70.02 first offender (5-25yr)."""
+        facts = CaseFacts(
+            section="120.10",
+            prior_record_status=PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10,
+            defendant_age_category=AgeCategory.ADULT,
+        )
+        out = resolve("120.10", facts)
+        det = [d for d in out.available_dispositions if d.type.value == "determinate"]
+        assert len(det) == 1
+        assert det[0].term.min_value == 5
+
+    def test_class_e_vfo_with_70_08_falls_back_to_first_offender(self):
+        """§130.53 (Class E VFO) + 70.08 → 70.02 first offender, because
+        PL 70.08(3) has no Class E provision."""
+        facts = CaseFacts(
+            section="130.53",
+            prior_record_status=PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08,
+            defendant_age_category=AgeCategory.ADULT,
+        )
+        out = resolve("130.53", facts)
+        det = [d for d in out.available_dispositions if d.type.value == "determinate"]
+        assert len(det) == 1
+        # 70.02 first-offender Class E: 1.5-4yr
+        assert det[0].term.min_value == 1.5

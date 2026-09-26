@@ -85,49 +85,66 @@ def _class_key(classification: str) -> str:
 _SPECIAL_70_08_AII_SECTIONS = {"130.95", "130.96"}
 
 
-def _normalize_prior_status_for_non_vfo(
+def _normalize_prior_status(
     classification: str,
     section: str,
     vfo: bool,
     prior_status: PriorRecordStatus,
 ) -> tuple[bool, PriorRecordStatus]:
-    """Normalize the prior record status when the offense is not a VFO.
+    """Normalize the prior record status for the offense's VFO status.
 
-    PL 70.04 and 70.08 require the current offense to be a violent felony
-    per 70.02(1). If it's not, those statuses don't apply — the prior
-    violent felony conviction still counts as a predicate, so we fall back
-    to the non-VFO equivalent (70.06 or 70.10).
+    Two directions:
 
-    Exception: §130.95/§130.96 (Class A-II, predatory sexual assault) are
-    explicitly named in PL 70.08(1)(a) as VFOs for 70.08 purposes, even
-    though they're A-II and not in VFO_LIST. For these, 70.08 DOES apply.
+    NON-VFO with violent-felony prior status:
+      PL 70.04/70.08 require the current offense to be a VFO per 70.02(1).
+      If it's not, fall back: 70.04→70.06, 70.08→70.10 (then 70.06→first
+      offender for A-I/A-II per PL 70.06(6)).
+      Exception: §130.95/§130.96 (A-II) are explicitly named in 70.08(1)(a).
 
-    PL 70.06(6): "The provisions of this section shall not apply to a
-    class A-I or class A-II felony." So even after fallback, if the offense
-    is A-I/A-II and the status is 70.06, fall back further to first offender.
+    VFO with non-VFO prior status:
+      PL 70.02(3) requires determinate sentences for VFOs. PL 70.06/70.10
+      prescribe indeterminate sentences — they conflict with 70.02's
+      determinate requirement, so fall back: 70.06→70.02 first offender,
+      70.10→70.02 first offender. (70.04 requires a prior VIOLENT felony;
+      a non-violent predicate doesn't qualify for 70.04 enhancement.)
+      Exception: 70.08 has no Class E provision per PL 70.08(3) — Class E
+      VFOs with 70.08 status fall back to 70.02 first offender.
     """
-    if vfo:
-        return vfo, prior_status
-
-    # Special case: §130.95/§130.96 with 70.08 → route through VFO 70.08 table
+    # --- Special case: §130.95/§130.96 are VFOs for 70.08 despite A-II ---
     if (
         section in _SPECIAL_70_08_AII_SECTIONS
         and prior_status == PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08
     ):
         return True, prior_status
 
-    # Fall back violent-felony statuses to non-VFO equivalents
-    if prior_status == PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04:
-        prior_status = PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06
-    elif prior_status == PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08:
-        prior_status = PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10
+    if not vfo:
+        # Non-VFO with violent-felony prior status → fall back
+        if prior_status == PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04:
+            prior_status = PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06
+        elif prior_status == PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08:
+            prior_status = PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10
 
-    # PL 70.06(6): 70.06 doesn't apply to A-I/A-II felonies
-    if (
-        prior_status == PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06
-        and classification in ("ClassA_I_Felony", "ClassA_II_Felony")
+        # PL 70.06(6): 70.06 doesn't apply to A-I/A-II
+        if (
+            prior_status == PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06
+            and classification in ("ClassA_I_Felony", "ClassA_II_Felony")
+        ):
+            prior_status = PriorRecordStatus.FIRST_OFFENDER
+        return vfo, prior_status
+
+    # VFO with non-VFO prior status → fall back to 70.02 first offender
+    if prior_status in (
+        PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
+        PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10,
     ):
-        prior_status = PriorRecordStatus.FIRST_OFFENDER
+        return vfo, PriorRecordStatus.FIRST_OFFENDER
+
+    # 70.08 Class E: PL 70.08(3) has no Class E provision → fall back to 70.02
+    if (
+        prior_status == PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08
+        and classification in ("ClassE_Felony", "ClassE_Violent_Felony")
+    ):
+        return vfo, PriorRecordStatus.FIRST_OFFENDER
 
     return vfo, prior_status
 
@@ -143,7 +160,7 @@ def _resolve_primary_felony_disposition(
     VFOs get determinate sentences (PL 70.02 / 70.04 / 70.08).
     Non-VFOs get indeterminate sentences (PL 70.00 / 70.06 / 70.10).
     """
-    vfo, prior_status = _normalize_prior_status_for_non_vfo(
+    vfo, prior_status = _normalize_prior_status(
         classification, section, vfo, prior_status
     )
     cls_key = _class_key(classification)
