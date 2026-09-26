@@ -245,6 +245,8 @@ class CaseFacts(BaseModel):
     defendant_under_other_sentence_over_15_days: bool = False
     victim_seeking_restitution: bool = False
     hate_crime_motivated: bool = False
+    sexually_motivated: bool = False
+    terrorism_motivated: bool = False
 
     # Conditional classification triggers (offense-intrinsic)
     intended_underlying_offense_class: Optional[str] = Field(
@@ -259,6 +261,33 @@ class CaseFacts(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Modifier tracking
+# ---------------------------------------------------------------------------
+
+
+class ModifierApplied(BaseModel):
+    """Records a single modifier (enhancement) that was applied during sentencing.
+
+    Modifiers are applied in order: SMF → hate crime → terrorism. Each modifier
+    sees the classification resulting from the previous one.
+    """
+
+    modifier_type: str
+    """One of: 'hate_crime', 'terrorism', 'sexually_motivated_felony'."""
+
+    branch: Optional[str] = None
+    """Which sub-rule matched. e.g. 'misdemeanorOrClassCDE', 'ClassB',
+    'ClassA_I' for hate crime; 'ClassCDE', 'ClassB_to_A_I', 'life_without_parole'
+    for terrorism; 'violent_redesignation' for SMF."""
+
+    base_classification: str
+    """Classification before this modifier was applied."""
+
+    resulting_classification: str
+    """Classification after this modifier was applied."""
+
+
+# ---------------------------------------------------------------------------
 # Output model
 # ---------------------------------------------------------------------------
 
@@ -268,6 +297,13 @@ class SentencingOutput(BaseModel):
 
     Each field corresponds to a category of outputs from the reference example.
     The engine populates all fields based on (offense, case_facts).
+
+    Modifier tracking:
+      - base_classification: the pre-any-modifier classification (None if no
+        modifier fired).
+      - modifiers_applied: list of ModifierApplied records, one per modifier
+        that fired (SMF, hate crime, terrorism). Empty if none fired.
+    The `classification` field always holds the final post-modifier value.
     """
 
     section: str
@@ -281,3 +317,6 @@ class SentencingOutput(BaseModel):
     collateral_requirements: list[CollateralRequirement] = Field(
         default_factory=list
     )
+
+    base_classification: Optional[str] = None
+    modifiers_applied: list[ModifierApplied] = Field(default_factory=list)

@@ -19,6 +19,7 @@ from .models import (
     CollateralRequirement,
     Disposition,
     DispositionType,
+    ModifierApplied,
     PostReleaseSupervision,
     PriorRecordStatus,
     SentencingOutput,
@@ -27,7 +28,9 @@ from .models import (
 )
 from .resolvers import (
     is_felony,
+    is_hatecrime_eligible,
     is_misdemeanor,
+    is_smf_eligible,
     is_violation,
     is_vfo,
     resolve_attempt_classification,
@@ -170,13 +173,23 @@ def _resolve_primary_felony_disposition(
 
         max_years = row["maxTermYears"]
         statute = "PL 70.00(3)" if status_key == "firstOffender" else "PL 70.06"
-        disp = Disposition(
-            type=DispositionType.INDETERMINATE,
-            label=f"Indeterminate sentence — {max_years[0]}–{max_years[1]} years max",
-            statute_refs=[statute],
-            term=TermRange(min_value=max_years[0], max_value=max_years[1]),
-            conditions=row.get("minTermRule"),
-        )
+        if max_years == "life":
+            min_period = row.get("minYears", [15, 25])
+            disp = Disposition(
+                type=DispositionType.INDETERMINATE,
+                label=f"Indeterminate sentence — {min_period[0]}–{min_period[1]} years to life",
+                statute_refs=[statute],
+                term=TermRange(min_value=min_period[0], max_value=999),
+                conditions=row.get("minTermRule"),
+            )
+        else:
+            disp = Disposition(
+                type=DispositionType.INDETERMINATE,
+                label=f"Indeterminate sentence — {max_years[0]}–{max_years[1]} years max",
+                statute_refs=[statute],
+                term=TermRange(min_value=max_years[0], max_value=max_years[1]),
+                conditions=row.get("minTermRule"),
+            )
         return disp, None
 
     raise ValueError(f"Could not resolve primary disposition for {section}")
@@ -491,6 +504,211 @@ def _resolve_conditional_classification(
 
 
 # ---------------------------------------------------------------------------
+# Modifier bumps: SMF (§130.91), hate crime (§485.10), terrorism (§490.25)
+# ---------------------------------------------------------------------------
+# Applied in order: SMF → hate crime → terrorism. Each modifier sees the
+# classification resulting from the previous one. Each returns a tuple:
+#   (new_classification, vfo_override, branch, applied)
+# vfo_override: None = keep existing vfo; True/False = set vfo to this value.
+
+# --- Hate crime upgrade ladder (§485.10(2)) ---
+# One-tier escalation for misdemeanors and Class C/D/E felonies. Violent
+# variants stay violent; non-violent stay non-violent. VFO status is
+# re-derived via is_vfo() after the bump (statute does not "deem" non-VFO
+# hate crimes as VFOs — only already-VFO underlying offenses per §485.10(1)).
+_HATECRIME_UPGRADE_TABLE = {
+    "ClassA_Misdemeanor": "ClassE_Felony",
+    "ClassB_Misdemeanor": "ClassA_Misdemeanor",
+    "Unclassified_Misdemeanor": "ClassA_Misdemeanor",
+    "ClassE_Felony": "ClassD_Felony",
+    "ClassD_Felony": "ClassC_Felony",
+    "ClassC_Felony": "ClassB_Felony",
+    "ClassE_Violent_Felony": "ClassD_Violent_Felony",
+    "ClassD_Violent_Felony": "ClassC_Violent_Felony",
+    "ClassC_Violent_Felony": "ClassB_Violent_Felony",
+}
+
+_SIMPLE_BUMP_CLASSIFICATIONS = set(_HATECRIME_UPGRADE_TABLE.keys())
+
+# --- SMF violent redesignation (§130.91) ---
+# Maps non-violent felony classes to their violent variants. No tier shift —
+# only redesignates as a violent felony, routing through VFO tables.
+# NOTE: statutory basis for "violent redesignation" not explicit in §130.91
+# text itself; derived from DB classification_resolution (unverified —
+# flagged for legal review per TODO.md).
+_SMF_VIOLENT_REDESIGNATION = {
+    "ClassB_Felony": "ClassB_Violent_Felony",
+    "ClassC_Felony": "ClassC_Violent_Felony",
+    "ClassD_Felony": "ClassD_Violent_Felony",
+    "ClassE_Felony": "ClassE_Violent_Felony",
+}
+
+# --- Terrorism upgrade ladder (§490.25(2)(b)) ---
+# Same one-tier escalation as hate crime, but terrorism explicitly "deems"
+# the offense a VFO per §490.25(2)(a). So vfo is always set to True for
+# C/D/E bumped felonies.
+_TERRORISM_UPGRADE_TABLE = {
+    "ClassE_Felony": "ClassD_Violent_Felony",
+    "ClassD_Felony": "ClassC_Violent_Felony",
+    "ClassC_Felony": "ClassB_Violent_Felony",
+    "ClassE_Violent_Felony": "ClassD_Violent_Felony",
+    "ClassD_Violent_Felony": "ClassC_Violent_Felony",
+    "ClassC_Violent_Felony": "ClassB_Violent_Felony",
+}
+
+
+def _apply_smf_bump(
+    classification: str,
+    section: str,
+    case_facts: CaseFacts,
+) -> tuple[str, bool | None, str | None, bool]:
+    """Apply the SMF bump (§130.91) — violent redesignation only, no tier shift.
+
+    If the offense is SMF-eligible and sexually_motivated, a non-violent
+    felony is redesignated to its violent variant (routes through VFO tables).
+    Already-violent felonies are unchanged but the modifier is still recorded.
+    """
+    if not case_facts.sexually_motivated:
+        return classification, None, None, False
+    if not is_smf_eligible(section, classification):
+        return classification, None, None, False
+
+    if classification in _SMF_VIOLENT_REDESIGNATION:
+        return _SMF_VIOLENT_REDESIGNATION[classification], True, "violent_redesignation", True
+    if classification in ("ClassB_Violent_Felony", "ClassC_Violent_Felony",
+                         "ClassD_Violent_Felony", "ClassE_Violent_Felony"):
+        return classification, None, "violent_redesignation", True
+    return classification, None, None, False
+
+
+def _apply_hatecrime_bump(
+    classification: str,
+    section: str,
+    case_facts: CaseFacts,
+) -> tuple[str, bool | None, str | None, bool]:
+    """Apply the hate crime bump (PL 485.10).
+
+    Returns (new_classification, vfo_override, branch, applied).
+    - Simple branch (misdemeanorOrClassCDE): one-tier upgrade, vfo re-derived.
+    - ClassB branch: no reclassification, floors applied post-disposition.
+    - ClassA_I branch: no reclassification, 20-year min applied post-disposition.
+    """
+    if not case_facts.hate_crime_motivated:
+        return classification, None, None, False
+    if not is_hatecrime_eligible(section):
+        return classification, None, None, False
+
+    if classification in _SIMPLE_BUMP_CLASSIFICATIONS:
+        upgraded = _HATECRIME_UPGRADE_TABLE[classification]
+        return upgraded, None, "misdemeanorOrClassCDE", True
+
+    if classification in ("ClassB_Felony", "ClassB_Violent_Felony"):
+        return classification, None, "ClassB", True
+
+    if classification == "ClassA_I_Felony":
+        return classification, None, "ClassA_I", True
+
+    return classification, None, None, False
+
+
+def _apply_terrorism_bump(
+    classification: str,
+    section: str,
+    case_facts: CaseFacts,
+) -> tuple[str, bool | None, str | None, bool]:
+    """Apply the terrorism bump (PL 490.25).
+
+    Returns (new_classification, vfo_override, branch, applied).
+    - Class C/D/E felony: one tier higher + deemed VFO (vfo=True).
+    - Class B felony: deemed Class A-I felony (sentenced per 70.00).
+    - Class A-I felony: life without parole (no reclassification; disposition
+      override handled post-computation — TODO).
+    """
+    if not case_facts.terrorism_motivated:
+        return classification, None, None, False
+    if not is_hatecrime_eligible(section):
+        return classification, None, None, False
+    if not is_felony(classification):
+        return classification, None, None, False
+
+    if classification in _TERRORISM_UPGRADE_TABLE:
+        return _TERRORISM_UPGRADE_TABLE[classification], True, "ClassCDE", True
+
+    if classification in ("ClassB_Felony", "ClassB_Violent_Felony"):
+        return "ClassA_I_Felony", False, "ClassB_to_A_I", True
+
+    if classification == "ClassA_I_Felony":
+        return classification, None, "life_without_parole", True
+
+    return classification, None, None, False
+
+
+def _apply_hatecrime_floors(
+    dispositions: list[Disposition],
+    vfo: bool,
+    prior_status: PriorRecordStatus,
+    branch: str,
+) -> None:
+    """Apply hate crime minimum floors (§485.10(3)/(4)) to the primary
+    disposition in-place. Called post-disposition when the ClassB or ClassA_I
+    hate crime branch fired.
+    """
+    if not dispositions:
+        return
+    primary = dispositions[0]
+    bump_table = reference.get_hatecrime_bump_table()
+
+    if branch == "ClassB":
+        floors = bump_table.get("ClassB", {}).get("floors", {})
+        # Determine which sentencing statute applied based on vfo + prior status
+        if vfo and prior_status == PriorRecordStatus.FIRST_OFFENDER:
+            floor = floors.get("70.02", {})
+            if "termMin" in floor and primary.term:
+                primary.term = TermRange(
+                    min_value=max(primary.term.min_value, floor["termMin"]),
+                    max_value=primary.term.max_value,
+                    unit=primary.term.unit,
+                )
+        elif vfo and prior_status == PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04:
+            floor = floors.get("70.04", {})
+            if "termMin" in floor and primary.term:
+                primary.term = TermRange(
+                    min_value=max(primary.term.min_value, floor["termMin"]),
+                    max_value=primary.term.max_value,
+                    unit=primary.term.unit,
+                )
+        elif not vfo and prior_status == PriorRecordStatus.FIRST_OFFENDER:
+            floor = floors.get("70.00", {})
+            if "maxTermMin" in floor and primary.term:
+                primary.term = TermRange(
+                    min_value=primary.term.min_value,
+                    max_value=max(primary.term.max_value, floor["maxTermMin"]),
+                    unit=primary.term.unit,
+                )
+        elif not vfo and prior_status == PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06:
+            floor = floors.get("70.06", {})
+            if "maxTermMin" in floor and primary.term:
+                primary.term = TermRange(
+                    min_value=primary.term.min_value,
+                    max_value=max(primary.term.max_value, floor["maxTermMin"]),
+                    unit=primary.term.unit,
+                )
+        # 70.05 (juvenile) and 70.08 (persistent VFO) not yet handled — TODO
+
+    elif branch == "ClassA_I":
+        min_period = bump_table.get("ClassA_I", {}).get("minPeriod", 20)
+        if primary.term:
+            primary.term = TermRange(
+                min_value=max(primary.term.min_value, min_period),
+                max_value=primary.term.max_value,
+                unit=primary.term.unit,
+            )
+
+
+
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -541,6 +759,37 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
         )
         vfo = is_vfo(section, effective_classification)
 
+    # Apply modifier bumps in order: SMF → hate crime → terrorism.
+    # Each modifier sees the classification resulting from the previous one.
+    base_classification = effective_classification
+    modifiers_applied: list[ModifierApplied] = []
+    any_modifier_fired = False
+
+    for mod_type, bump_fn in (
+        ("sexually_motivated_felony", _apply_smf_bump),
+        ("hate_crime", _apply_hatecrime_bump),
+        ("terrorism", _apply_terrorism_bump),
+    ):
+        pre_class = effective_classification
+        effective_classification, vfo_override, branch, applied = bump_fn(
+            effective_classification, section, case_facts
+        )
+        if applied:
+            any_modifier_fired = True
+            if vfo_override is not None:
+                vfo = vfo_override
+            elif branch == "misdemeanorOrClassCDE":
+                vfo = is_vfo(section, effective_classification)
+            modifiers_applied.append(ModifierApplied(
+                modifier_type=mod_type,
+                branch=branch,
+                base_classification=pre_class,
+                resulting_classification=effective_classification,
+            ))
+
+    if not any_modifier_fired:
+        base_classification = None
+
     # Primary disposition + PRS
     dispositions: list[Disposition] = []
 
@@ -570,6 +819,13 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
         dispositions.extend(_generate_violation_alternatives())
     else:
         raise ValueError(f"Unknown classification: {effective_classification}")
+
+    # Apply hate crime minimum floors (§485.10(3)/(4)) post-disposition
+    for mod in modifiers_applied:
+        if mod.modifier_type == "hate_crime" and mod.branch in ("ClassB", "ClassA_I"):
+            _apply_hatecrime_floors(
+                dispositions, vfo, case_facts.prior_record_status, mod.branch
+            )
 
     # Exceptions
     exceptions = generate_all_exceptions(
@@ -605,4 +861,6 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
         exception_paths=exceptions,
         financial_obligations=financial,
         collateral_requirements=collateral,
+        base_classification=base_classification,
+        modifiers_applied=modifiers_applied,
     )

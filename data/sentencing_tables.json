@@ -69,6 +69,18 @@
         "minTermRule": "1yr to 1/3 of max",
         "altDefiniteMax1yr": false,
         "probationEligibleYears": 5
+      },
+      "ClassA_II": {
+        "type": "indeterminate",
+        "maxTermYears": "life",
+        "minYears": [3, 8.33],
+        "_note": "PL 70.00(3)(a)(ii): min 3yr to 8yr 4mo. Predatory sexual assault (130.95/130.96) has 10-25yr min — offense-specific override not yet encoded."
+      },
+      "ClassA_I": {
+        "type": "indeterminate",
+        "maxTermYears": "life",
+        "minYears": [15, 25],
+        "_note": "PL 70.00(3)(a)(i): min 15-25yr. Murder 1st (125.27) has 20-25yr min; aggravated murder (125.26) and murder 2nd subd 5 (125.25(5)) get life without parole — offense-specific overrides not yet encoded."
       }
     },
     "secondFelonyOffender_70_06": {
@@ -311,11 +323,19 @@
       "effect": "fixed statutory minimum floors per predicate-offender status",
       "isSimpleBump": false,
       "requiresPredicateStatus": true,
-      "_note": "Not a simple one-class bump — court must apply 485.10(3) minimum floors based on prior record. Requires separate judicial finding."
+      "_note": "Not a simple one-class bump — court must apply 485.10(3) minimum floors based on prior record. Requires separate judicial finding.",
+      "floors": {
+        "70.00": {"maxTermMin": 6, "_ref": "485.10(3)(a) — non-VFO indeterminate, max term at least 6 years"},
+        "70.02": {"termMin": 8, "_ref": "485.10(3)(b) — VFO determinate first offender, term at least 8 years"},
+        "70.04": {"termMin": 12, "_ref": "485.10(3)(c) — VFO determinate second violent, term at least 12 years"},
+        "70.05": {"maxTermMin": 4, "_ref": "485.10(3)(d) — juvenile offender indeterminate, max term at least 4 years"},
+        "70.06": {"maxTermMin": 10, "_ref": "485.10(3)(e) — non-VFO predicate, max/determinate term at least 10 years"}
+      }
     },
     "ClassA_I": {
       "effect": "flat minimum indeterminate period of at least 20 years",
       "isSimpleBump": false,
+      "minPeriod": 20,
       "_note": "Not a bump at all — applies a floor on the minimum period of an indeterminate sentence. See 485.10(4)."
     }
   },
