@@ -16,6 +16,14 @@
       "lifeWithoutParole": true,
       "_ref": "PL 70.00(3)(a)(i)(B) — aggravated murder: life without parole"
     },
+    "130.95": {
+      "minYears": [10, 25],
+      "_ref": "PL 70.00(3)(a)(ii) — predatory sexual assault: min 10-25yr (vs standard A-II 3-8.33yr)"
+    },
+    "130.96": {
+      "minYears": [10, 25],
+      "_ref": "PL 70.00(3)(a)(ii) — predatory sexual assault against a child: min 10-25yr (vs standard A-II 3-8.33yr)"
+    },
     "125.25": {
       "_note": "Murder 2nd subd 5 (cop-killer provision) gets life without parole per 70.00(3)(a)(i)(B). Not yet implemented — requires subdivision-level override modeling. Other subdivisions use standard A-I sentencing."
     }

@@ -570,3 +570,82 @@ class TestOffenseOverrideWithHateCrime:
         mod = _hc_modifier(output)
         assert mod is not None
         assert mod.branch == "ClassA_I"
+
+
+# ---------------------------------------------------------------------------
+# Class A-II prior-record-status normalization (PL 70.06(6), 70.08(1)(a))
+# ---------------------------------------------------------------------------
+
+
+class TestAIIAllPriorStatuses:
+    """§130.95 (predatory sexual assault, Class A-II) must resolve without error
+    for ALL prior record statuses. PL 70.06(6) excludes A-I/A-II from 70.06;
+    PL 70.08(1)(a) explicitly includes §130.95/§130.96 as VFOs for 70.08."""
+
+    @pytest.fixture
+    def base_facts_kwargs(self):
+        return {"section": "130.95", "defendant_age_category": AgeCategory.ADULT}
+
+    def test_first_offender(self, base_facts_kwargs):
+        facts = CaseFacts(prior_record_status=PriorRecordStatus.FIRST_OFFENDER, **base_facts_kwargs)
+        out = resolve("130.95", facts)
+        primary = out.available_dispositions[0]
+        assert primary.type.value == "indeterminate"
+        # Offense override: 10yr min per 70.00(3)(a)(ii)
+        assert primary.term.min_value == 10
+
+    def test_70_06_falls_back_to_first_offender(self, base_facts_kwargs):
+        """PL 70.06(6): 70.06 doesn't apply to A-II → first offender."""
+        facts = CaseFacts(prior_record_status=PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06, **base_facts_kwargs)
+        out = resolve("130.95", facts)
+        primary = out.available_dispositions[0]
+        assert primary.term.min_value == 10  # same as first offender
+
+    def test_70_04_falls_back_to_first_offender(self, base_facts_kwargs):
+        """70.04 requires VFO per 70.02(1); A-II not in VFO_LIST → 70.06 → first offender."""
+        facts = CaseFacts(prior_record_status=PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04, **base_facts_kwargs)
+        out = resolve("130.95", facts)
+        primary = out.available_dispositions[0]
+        assert primary.term.min_value == 10
+
+    def test_70_08_routes_through_vfo_table(self, base_facts_kwargs):
+        """§130.95 is explicitly a VFO for 70.08 per 70.08(1)(a) → 25yr fixed min."""
+        facts = CaseFacts(prior_record_status=PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08, **base_facts_kwargs)
+        out = resolve("130.95", facts)
+        primary = out.available_dispositions[0]
+        assert primary.term.min_value == 25
+
+    def test_70_10_persistent_felony(self, base_facts_kwargs):
+        """70.10 is discretionary, applies to any felony."""
+        facts = CaseFacts(prior_record_status=PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10, **base_facts_kwargs)
+        out = resolve("130.95", facts)
+        primary = out.available_dispositions[0]
+        assert primary.term.min_value == 15
+
+
+class TestNonVFOWithViolentPriorStatus:
+    """Non-VFO Class E felony with violent-felony prior statuses must fall back
+    to the non-VFO equivalent (70.04→70.06, 70.08→70.10)."""
+
+    def test_70_04_falls_back_to_70_06(self):
+        facts = CaseFacts(
+            section="187.10",
+            prior_record_status=PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04,
+            defendant_age_category=AgeCategory.ADULT,
+        )
+        out = resolve("187.10", facts)
+        primary = out.available_dispositions[0]
+        # 70.06 ClassE table: 3-4yr max indeterminate
+        assert primary.term.min_value == 3
+        assert primary.term.max_value == 4
+
+    def test_70_08_falls_back_to_70_10(self):
+        facts = CaseFacts(
+            section="187.10",
+            prior_record_status=PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08,
+            defendant_age_category=AgeCategory.ADULT,
+        )
+        out = resolve("187.10", facts)
+        primary = out.available_dispositions[0]
+        # 70.10 persistent: 15yr min to life
+        assert primary.term.min_value == 15
