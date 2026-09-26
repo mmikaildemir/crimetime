@@ -184,10 +184,19 @@ def _resolve_primary_felony_disposition(
                 "secondViolentFelonyOffender_70_04": "PL 70.04(3)",
                 "secondFelonyOffenderVFO_70_06_6": "PL 70.06(6)",
             }
+            statute_ref = statute_map[status_key]
+
+            # 70.02(3) offense-specific elevated determinate ranges
+            # (only applies to first VFO offender per 70.02, not 70.04/70.06)
+            if status_key == "firstVFOffender_70_02":
+                override = reference.get_offense_overrides().get(section, {})
+                if "determinateOverride" in override:
+                    term = override["determinateOverride"]
+                    statute_ref = override.get("_ref", statute_ref)
             disp = Disposition(
                 type=DispositionType.DETERMINATE,
                 label=f"Determinate sentence of {term[0]}–{term[1]} years",
-                statute_refs=[statute_map[status_key]],
+                statute_refs=[statute_ref],
                 term=TermRange(min_value=term[0], max_value=term[1]),
             )
             prs = None

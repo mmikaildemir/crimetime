@@ -24,6 +24,35 @@
       "minYears": [10, 25],
       "_ref": "PL 70.00(3)(a)(ii) — predatory sexual assault against a child: min 10-25yr (vs standard A-II 3-8.33yr)"
     },
+    "120.11": {
+      "determinateOverride": [10, 30],
+      "_ref": "PL 70.02(3)(a)(i) — aggravated assault upon a police officer/peace officer: B 10-30yr (vs standard 5-25)"
+    },
+    "125.22": {
+      "determinateOverride": [10, 30],
+      "_ref": "PL 70.02(3)(a)(ii) — aggravated manslaughter 1st: B 10-30yr (vs standard 5-25)"
+    },
+    "125.21": {
+      "determinateOverride": [7, 20],
+      "_ref": "PL 70.02(3)(b)(i) — aggravated manslaughter 2nd: C 7-20yr (vs standard 3.5-15)"
+    },
+    "125.11": {
+      "determinateOverride": [3.5, 20],
+      "_ref": "PL 70.02(3)(b)(iii) — aggravated criminally negligent homicide: C 3.5-20yr (vs standard 3.5-15)"
+    },
+    "265.19": {
+      "determinateOverride": [5, 15],
+      "_ref": "PL 70.02(3)(b)(iv) — aggravated criminal possession of a weapon: C 5-15yr (vs standard 3.5-15)"
+    },
+    "120.18": {
+      "determinateOverride": [2, 8],
+      "_ref": "PL 70.02(3)(c)(i) — menacing a police officer/peace officer: D 2-8yr (vs standard 2-7)"
+    },
+    "265.02": {
+      "determinateOverride": [3.5, 7],
+      "subdivisionOverride": "10",
+      "_ref": "PL 70.02(3)(c)(ii) — criminal possession of a weapon 3rd subd 10: D 3.5-7yr (vs standard 2-7)"
+    },
     "125.25": {
       "_note": "Murder 2nd subd 5 (cop-killer provision) gets life without parole per 70.00(3)(a)(i)(B). Not yet implemented — requires subdivision-level override modeling. Other subdivisions use standard A-I sentencing."
     }
