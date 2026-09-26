@@ -46,7 +46,7 @@
     "ClassA": {
       "firstOffender": {
         "type": "definite",
-        "maxTermMonths": 12,
+        "maxTermDays": 364,
         "probationEligibleYears": 3
       }
     }
@@ -157,7 +157,7 @@
     "_notes": [
       "Determinate sentences; imposed in whole or half years per PL 70.02(2)(a) / 70.04(2), effective until September 1, 2027.",
       "SUNSET: On September 1, 2027 these sections revert to indeterminate (NB Effective September 1, 2027 clauses). Regenerate this block after legislative update.",
-      "Post-release supervision (PRS) is mandatory on all determinate VFO sentences per PL 70.45: ClassB/C 2.5–5 years; ClassD/E 1.5–3 years. Source: PL 70.45 -- text not provided; flag for confirmation.",
+      "Post-release supervision (PRS) is mandatory on all determinate VFO sentences per PL 70.45: ClassB/C 2.5–5 years per 70.45(2)(f); ClassD/E 1.5–3 years per 70.45(2)(e). Default PRS for non-VFO determinate sentences is 5 years flat per 70.45(2); drug (70.70) and sex (70.80) PRS ranges encoded separately when those tracks are implemented.",
       "Class D VFO (70.02(2)(b)): sentence generally follows Class D felony provisions, but MUST be determinate when commitment to DOCCS is required (70.02(3)(c)). Range 2–7 years applies to DOCCS-commitment cases.",
       "70.04 ClassD floor is 5 years (vs 70.02 ClassD floor of 2 years) per 70.04(3)(c). 70.04 ClassE floor is 3 years (vs 70.02 ClassE floor of 1.5 years) per 70.04(3)(d). Confirmed from provided 70.04 text.",
       "70.08 ClassE: no provision in PL 70.08(3) for Class E violent felonies -- 70.08 only covers ClassA_II, ClassB, ClassC, ClassD. A persistent violent felony offender convicted of a ClassE VFO has no 70.08 minimum range. Flag for further legal research."
@@ -260,6 +260,33 @@
           1.5,
           3
         ],
+        "wholeOrHalfYears": true
+      }
+    },
+    "secondFelonyOffenderVFO_70_06_6": {
+      "_ref": "PL 70.06(6) — determinate sentence for second felony offender convicted of a VFO. NB Repealed September 1, 2027.",
+      "ClassB": {
+        "type": "determinate",
+        "termYears": [8, 25],
+        "prsYears": [2.5, 5],
+        "wholeOrHalfYears": true
+      },
+      "ClassC": {
+        "type": "determinate",
+        "termYears": [5, 15],
+        "prsYears": [2.5, 5],
+        "wholeOrHalfYears": true
+      },
+      "ClassD": {
+        "type": "determinate",
+        "termYears": [3, 7],
+        "prsYears": [1.5, 3],
+        "wholeOrHalfYears": true
+      },
+      "ClassE": {
+        "type": "determinate",
+        "termYears": [2, 4],
+        "prsYears": [1.5, 3],
         "wholeOrHalfYears": true
       }
     },
@@ -421,7 +448,7 @@
       "classA": {
         "definiteSentence": {
           "eligible": true,
-          "maxMonths": 12,
+          "maxDays": 364,
           "statuteRef": "PL 70.15(1)"
         },
         "intermittentImprisonment": {
@@ -432,24 +459,26 @@
         "splitSentence": {
           "eligible": true,
           "probationYears": [
+            2,
             3
           ],
-          "conditionalDischargeYears": 3,
-          "imprisonmentMaxMonths": 6,
+          "conditionalDischargeYears": 1,
+          "imprisonmentMaxDays": 60,
           "intermittentMaxMonths": 4,
           "statuteRef": "PL 60.01(2)(d)"
         },
         "probation": {
           "eligible": true,
           "years": [
+            2,
             3
           ],
-          "statuteRef": "PL 65.00(3)(a)(i)"
+          "statuteRef": "PL 65.00(3)(b)(i)"
         },
         "conditionalDischarge": {
           "eligible": true,
-          "years": 3,
-          "statuteRef": "PL 65.05",
+          "years": 1,
+          "statuteRef": "PL 65.05(3)(b)",
           "recordStatementRequired": false
         },
         "unconditionalDischarge": {
@@ -471,24 +500,24 @@
         "splitSentence": {
           "eligible": true,
           "probationYears": [
-            3
+            1
           ],
           "conditionalDischargeYears": 1,
-          "imprisonmentMaxMonths": 6,
+          "imprisonmentMaxDays": 60,
           "intermittentMaxMonths": 4,
           "statuteRef": "PL 60.01(2)(d)"
         },
         "probation": {
           "eligible": true,
           "years": [
-            3
+            1
           ],
-          "statuteRef": "PL 65.00(3)(a)(i)"
+          "statuteRef": "PL 65.00(3)(c)"
         },
         "conditionalDischarge": {
           "eligible": true,
           "years": 1,
-          "statuteRef": "PL 65.05"
+          "statuteRef": "PL 65.05(3)(b)"
         },
         "unconditionalDischarge": {
           "eligible": true,
@@ -677,12 +706,12 @@
         "statuteRef": "PL 80.05(4)"
       },
       "mandatorySurcharge": {
-        "amount": 75,
-        "statuteRef": "PL 60.35(1)(c)"
+        "amount": 95,
+        "statuteRef": "PL 60.35(1)(a)(iii)"
       },
       "crimeVictimAssistanceFee": {
         "amount": 25,
-        "statuteRef": "PL 60.35(1)(c)"
+        "statuteRef": "PL 60.35(1)(a)(iii)"
       }
     }
   },

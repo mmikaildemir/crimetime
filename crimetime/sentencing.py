@@ -52,6 +52,7 @@ _STATUS_TABLE_KEY_VFO = {
     PriorRecordStatus.FIRST_OFFENDER: "firstVFOffender_70_02",
     PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04: "secondViolentFelonyOffender_70_04",
     PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08: "persistentViolentFelonyOffender_70_08",
+    PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06: "secondFelonyOffenderVFO_70_06_6",
 }
 
 _CLASS_KEY_MAP = {
@@ -102,13 +103,13 @@ def _normalize_prior_status(
       Exception: §130.95/§130.96 (A-II) are explicitly named in 70.08(1)(a).
 
     VFO with non-VFO prior status:
-      PL 70.02(3) requires determinate sentences for VFOs. PL 70.06/70.10
-      prescribe indeterminate sentences — they conflict with 70.02's
-      determinate requirement, so fall back: 70.06→70.02 first offender,
-      70.10→70.02 first offender. (70.04 requires a prior VIOLENT felony;
-      a non-violent predicate doesn't qualify for 70.04 enhancement.)
-      Exception: 70.08 has no Class E provision per PL 70.08(3) — Class E
-      VFOs with 70.08 status fall back to 70.02 first offender.
+      PL 70.06(6) prescribes its OWN determinate ranges for a second felony
+      offender convicted of a VFO (B 8-25, C 5-15, D 3-7, E 2-4). Route
+      to the secondFelonyOffenderVFO_70_06_6 table.
+      PL 70.10 (persistent felony offender) is discretionary with no VFO-
+      specific determinate range; falls back to 70.02 first offender.
+      70.08 has no Class E provision per PL 70.08(3) — Class E VFOs with
+      70.08 status fall back to 70.02 first offender.
     """
     # --- Special case: §130.95/§130.96 are VFOs for 70.08 despite A-II ---
     if (
@@ -132,11 +133,10 @@ def _normalize_prior_status(
             prior_status = PriorRecordStatus.FIRST_OFFENDER
         return vfo, prior_status
 
-    # VFO with non-VFO prior status → fall back to 70.02 first offender
-    if prior_status in (
-        PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
-        PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10,
-    ):
+    # VFO + 70.06 → route to 70.06(6) determinate table (has own ranges)
+    # VFO + 70.10 → fall back to 70.02 first offender (70.10 is discretionary,
+    #   no VFO-specific determinate range)
+    if prior_status == PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10:
         return vfo, PriorRecordStatus.FIRST_OFFENDER
 
     # 70.08 Class E: PL 70.08(3) has no Class E provision → fall back to 70.02
@@ -169,8 +169,8 @@ def _resolve_primary_felony_disposition(
         tables = reference.get_violent_felony_table()
         status_key = _STATUS_TABLE_KEY_VFO[prior_status]
 
-        # 70.02 and 70.04 use "termYears" (determinate); 70.08 uses indeterminate
-        if status_key in ("firstVFOffender_70_02", "secondViolentFelonyOffender_70_04"):
+        # 70.02, 70.04, and 70.06(6) use "termYears" (determinate); 70.08 uses indeterminate
+        if status_key in ("firstVFOffender_70_02", "secondViolentFelonyOffender_70_04", "secondFelonyOffenderVFO_70_06_6"):
             status_table = tables[status_key]
             row = status_table.get(cls_key)
             if row is None:
@@ -179,10 +179,15 @@ def _resolve_primary_felony_disposition(
                     f"(section {section}, classification {classification})"
                 )
             term = row["termYears"]
+            statute_map = {
+                "firstVFOffender_70_02": "PL 70.02(3)",
+                "secondViolentFelonyOffender_70_04": "PL 70.04(3)",
+                "secondFelonyOffenderVFO_70_06_6": "PL 70.06(6)",
+            }
             disp = Disposition(
                 type=DispositionType.DETERMINATE,
                 label=f"Determinate sentence of {term[0]}–{term[1]} years",
-                statute_refs=[f"PL 70.0{'2' if status_key == 'firstVFOffender_70_02' else '4'}(3)"],
+                statute_refs=[statute_map[status_key]],
                 term=TermRange(min_value=term[0], max_value=term[1]),
             )
             prs = None
@@ -275,14 +280,16 @@ def _resolve_primary_misdemeanor_disposition(
     tables = reference.get_misdemeanor_table()
     if classification == "ClassA_Misdemeanor":
         row = tables.get("ClassA", {})
+        first = row.get("firstOffender", {})
+        max_days = first.get("maxTermDays", 364)
         return Disposition(
             type=DispositionType.DEFINITE,
-            label=f"Definite sentence up to {row.get('firstOffender', {}).get('maxTermMonths', 12)} months",
+            label=f"Definite sentence up to {max_days} days",
             statute_refs=["PL 70.15(1)"],
             term=TermRange(
                 min_value=0,
-                max_value=row.get("firstOffender", {}).get("maxTermMonths", 12),
-                unit=TermUnit.MONTHS,
+                max_value=max_days,
+                unit=TermUnit.DAYS,
             ),
         )
     elif classification == "ClassB_Misdemeanor":
@@ -300,9 +307,9 @@ def _resolve_primary_misdemeanor_disposition(
     else:
         return Disposition(
             type=DispositionType.DEFINITE,
-            label="Definite sentence as provided in the law creating the offense (max 1 year)",
+            label="Definite sentence as provided in the law creating the offense (max 364 days)",
             statute_refs=["PL 70.15(3)"],
-            term=TermRange(min_value=0, max_value=12, unit=TermUnit.MONTHS),
+            term=TermRange(min_value=0, max_value=364, unit=TermUnit.DAYS),
         )
 
 
@@ -331,14 +338,27 @@ def _generate_felony_alternatives(
     is_vfo: bool,
     case_facts: CaseFacts,
 ) -> list[Disposition]:
-    """Generate alternative dispositions for a felony from the dispositions table."""
+    """Generate alternative dispositions for a felony from the dispositions table.
+
+    Gated by classification per statute:
+      - Definite sentence (PL 70.00(4)): Class D/E felonies only, for a
+        non-second/persistent offender.
+      - Intermittent (PL 85.00(2)): Class D/E felonies or non-felonies only.
+      - Probation (PL 60.05(2)/65.00(1)(a)): NOT available for Class A felonies
+        (60.05(2) requires imprisonment per 70.00 for Class A).
+    """
     disp_table = reference.get_dispositions_table()
     fel = disp_table.get("felony", {})
     alternatives: list[Disposition] = []
 
-    # Definite sentence (PL 70.00(4)) — available for all felonies
+    # Class letter for gating
+    cls_letter = _class_key(classification)
+    is_class_de = cls_letter in ("ClassD", "ClassE")
+    is_class_a = cls_letter in ("ClassA_I", "ClassA_II")
+
+    # Definite sentence (PL 70.00(4)) — Class D/E only
     definite = fel.get("definiteSentence", {})
-    if definite.get("eligible"):
+    if definite.get("eligible") and is_class_de:
         alternatives.append(
             Disposition(
                 type=DispositionType.DEFINITE,
@@ -351,9 +371,9 @@ def _generate_felony_alternatives(
             )
         )
 
-    # Intermittent imprisonment (PL 85.00)
+    # Intermittent imprisonment (PL 85.00(2)) — Class D/E only
     intermittent = fel.get("intermittentImprisonment", {})
-    if intermittent.get("eligible"):
+    if intermittent.get("eligible") and is_class_de:
         alternatives.append(
             Disposition(
                 type=DispositionType.INTERMITTENT,
@@ -381,9 +401,9 @@ def _generate_felony_alternatives(
             )
         )
 
-    # Probation (PL 65.00)
+    # Probation (PL 65.00) — NOT for Class A felonies per PL 60.05(2)
     probation = fel.get("probation", {})
-    if probation.get("eligible"):
+    if probation.get("eligible") and not is_class_a:
         alternatives.append(
             Disposition(
                 type=DispositionType.PROBATION,
@@ -457,19 +477,33 @@ def _generate_misdemeanor_alternatives(
     # Split sentence
     split = sub.get("splitSentence", {})
     if split.get("eligible"):
-        imprisonment_months = split["imprisonmentMaxMonths"]
+        imprisonment_days = split.get("imprisonmentMaxDays")
+        imprisonment_months = split.get("imprisonmentMaxMonths")
         if case_facts.is_dwi:
             imprisonment_months = split.get("dwiImprisonmentMaxMonths", 12)
-        alternatives.append(
-            Disposition(
-                type=DispositionType.SPLIT,
-                label=f"Split sentence — imprisonment up to {imprisonment_months} months + probation or conditional discharge",
-                statute_refs=[split["statuteRef"]],
-                split_imprisonment_max_months=imprisonment_months,
-                probation_years=split.get("probationYears", [3]),
-                conditional_discharge_years=split.get("conditionalDischargeYears"),
+            imprisonment_days = None
+        if imprisonment_days:
+            alternatives.append(
+                Disposition(
+                    type=DispositionType.SPLIT,
+                    label=f"Split sentence — imprisonment up to {imprisonment_days} days + probation or conditional discharge",
+                    statute_refs=[split["statuteRef"]],
+                    split_imprisonment_max_months=imprisonment_days / 30.0,
+                    probation_years=split.get("probationYears", [3]),
+                    conditional_discharge_years=split.get("conditionalDischargeYears"),
+                )
             )
-        )
+        else:
+            alternatives.append(
+                Disposition(
+                    type=DispositionType.SPLIT,
+                    label=f"Split sentence — imprisonment up to {imprisonment_months} months + probation or conditional discharge",
+                    statute_refs=[split["statuteRef"]],
+                    split_imprisonment_max_months=imprisonment_months,
+                    probation_years=split.get("probationYears", [3]),
+                    conditional_discharge_years=split.get("conditionalDischargeYears"),
+                )
+            )
 
     # Probation
     probation = sub.get("probation", {})

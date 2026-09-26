@@ -657,8 +657,9 @@ class TestVFOWithNonVFOPriorStatus:
     indeterminate sentences that conflict with 70.02(3)'s determinate
     requirement for VFOs."""
 
-    def test_vfo_with_70_06_falls_back_to_first_offender(self):
-        """§120.10 (Class B VFO) + 70.06 → 70.02 first offender (5-25yr)."""
+    def test_vfo_with_70_06_uses_determinate_table(self):
+        """§120.10 (Class B VFO) + 70.06 → 70.06(6) determinate (8-25yr), not
+        70.02 first offender (5-25yr). PL 70.06(6) has its own VFO ranges."""
         facts = CaseFacts(
             section="120.10",
             prior_record_status=PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
@@ -667,8 +668,8 @@ class TestVFOWithNonVFOPriorStatus:
         out = resolve("120.10", facts)
         det = [d for d in out.available_dispositions if d.type.value == "determinate"]
         assert len(det) == 1
-        # 70.02 first-offender Class B: 5-25yr
-        assert det[0].term.min_value == 5
+        # 70.06(6) Class B: 8-25yr (vs 70.02 first offender 5-25yr)
+        assert det[0].term.min_value == 8
         assert det[0].term.max_value == 25
 
     def test_vfo_with_70_10_falls_back_to_first_offender(self):
