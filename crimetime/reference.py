@@ -198,3 +198,8 @@ def get_drug_felony_table() -> dict[str, Any]:
 def get_sex_offense_felony_table() -> dict[str, Any]:
     """Return the felony sex offense sentencing tables (PL 70.80)."""
     return _load_sentencing().get("sexOffenseFelony", {})
+
+
+def get_juvenile_offender_table() -> dict[str, Any]:
+    """Return the juvenile offender sentencing table (PL 70.05)."""
+    return _load_sentencing().get("juvenileOffender", {})

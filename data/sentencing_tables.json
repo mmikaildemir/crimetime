@@ -822,5 +822,38 @@
     "additionalSurchargeMaxPercent": 10,
     "triggeringFactor": "victim_seeking_restitution",
     "description": "Court must consider ordering restitution; if not ordered, must state reasons on record. If ordered, 5% collection surcharge added; up to 10% additional surcharge upon filing by collection agency."
+  },
+  "juvenileOffender": {
+    "_ref": "PL 70.05 — indeterminate sentence for juvenile offender (13-15 yr old charged with felony). Max terms and minimum periods per 70.05(2)/(3).",
+    "ClassA_I_murder": {
+      "type": "indeterminate",
+      "maxTerm": "life",
+      "minYears": [5, 9],
+      "_ref": "70.05(2)(a) + (3)(a) — murder 2nd (125.25): max life, min 5-9yr"
+    },
+    "ClassA_I_arson_kidnap": {
+      "type": "indeterminate",
+      "maxTermYears": [12, 15],
+      "minYears": [1, 5],
+      "_ref": "70.05(2)(b) + (3)(b) — arson 1st (150.20) / kidnapping 1st (135.25): max 12-15yr, min 1-5yr"
+    },
+    "ClassB": {
+      "type": "indeterminate",
+      "maxTermYears": [1, 10],
+      "minTermRule": "1yr to 1/3 of max",
+      "_ref": "70.05(2)(c) — max ≤10yr"
+    },
+    "ClassC": {
+      "type": "indeterminate",
+      "maxTermYears": [1, 7],
+      "minTermRule": "1yr to 1/3 of max",
+      "_ref": "70.05(2)(d) — max ≤7yr"
+    },
+    "ClassD": {
+      "type": "indeterminate",
+      "maxTermYears": [1, 4],
+      "minTermRule": "1yr to 1/3 of max",
+      "_ref": "70.05(2)(e) — max ≤4yr"
+    }
   }
 }

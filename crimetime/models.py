@@ -37,10 +37,11 @@ class PriorRecordStatus(str, Enum):
 
 
 class AgeCategory(str, Enum):
-    """Defendant age category — gates youthful-offender eligibility."""
+    """Defendant age category — gates youthful-offender and juvenile-offender sentencing."""
 
     ADULT = "adult"
     YOUTHFUL_OFFENDER_ELIGIBLE = "youthful_offender_eligible"
+    JUVENILE_OFFENDER = "juvenile_offender"
 
 
 class DispositionType(str, Enum):

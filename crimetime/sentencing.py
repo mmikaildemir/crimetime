@@ -15,6 +15,7 @@ from . import reference
 from .exceptions import generate_all_exceptions
 from .financial import generate_all_financial, generate_collateral_requirements
 from .models import (
+    AgeCategory,
     CaseFacts,
     CollateralRequirement,
     Disposition,
@@ -108,6 +109,72 @@ def _is_sex_offense(offense: dict, section: str) -> bool:
     if article == 130:
         return True
     return section in _SEX_OFFENSE_EXTRA_SECTIONS
+
+
+# Sections that get special Class A-I juvenile treatment (70.05(2)(a)/(b))
+_JUVENILE_A_I_MURDER = "125.25"
+_JUVENILE_A_I_ARSON_KIDNAP = {"150.20", "135.25"}
+
+
+def _resolve_juvenile_offender_disposition(
+    classification: str,
+    section: str,
+) -> Disposition:
+    """Resolve a juvenile offender disposition per PL 70.05.
+
+    Juvenile offenders get indeterminate sentences with reduced max terms
+    and minimums. Class A-I has special categories for murder 2nd vs
+    arson/kidnapping 1st.
+    """
+    tables = reference.get_juvenile_offender_table()
+    cls_key = _class_key(classification)
+
+    # Class A-I special cases
+    if cls_key == "ClassA_I":
+        if section == _JUVENILE_A_I_MURDER:
+            row = tables.get("ClassA_I_murder", {})
+        elif section in _JUVENILE_A_I_ARSON_KIDNAP:
+            row = tables.get("ClassA_I_arson_kidnap", {})
+        else:
+            # Other A-I felonies by juvenile offender — not explicitly in 70.05
+            # Fall back to standard A-I (most likely not applicable, but safe)
+            row = tables.get("ClassA_I_arson_kidnap", {})
+    else:
+        row = tables.get(cls_key, {})
+
+    if not row:
+        raise ValueError(
+            f"No juvenile offender table entry for {cls_key} (section {section})"
+        )
+
+    max_term = row.get("maxTerm", row.get("maxTermYears"))
+    min_years = row.get("minYears")
+    min_rule = row.get("minTermRule")
+
+    if max_term == "life":
+        return Disposition(
+            type=DispositionType.INDETERMINATE,
+            label=f"Indeterminate sentence — {min_years[0]}–{min_years[1]} years to life",
+            statute_refs=["PL 70.05(2)(a), 70.05(3)(a)"],
+            term=TermRange(min_value=min_years[0], max_value=999),
+            conditions=min_rule,
+        )
+    elif min_years:
+        return Disposition(
+            type=DispositionType.INDETERMINATE,
+            label=f"Indeterminate sentence — {min_years[0]}–{min_years[1]} to {max_term[0]}–{max_term[1]} years max",
+            statute_refs=["PL 70.05(2)(b), 70.05(3)(b)"],
+            term=TermRange(min_value=min_years[0], max_value=max_term[1]),
+            conditions=min_rule,
+        )
+    else:
+        return Disposition(
+            type=DispositionType.INDETERMINATE,
+            label=f"Indeterminate sentence — 1yr to 1/3 of max (max {max_term[1]} years)",
+            statute_refs=["PL 70.05(2)/(3)"],
+            term=TermRange(min_value=1, max_value=max_term[1]),
+            conditions=min_rule,
+        )
 
 
 def _resolve_drug_felony_disposition(
@@ -1055,6 +1122,22 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
     # Primary disposition + PRS
     dispositions: list[Disposition] = []
 
+    # Juvenile offender routing (PL 70.05): juvenile offenders get indeterminate
+    # sentences with reduced max terms, regardless of VFO/drug/sex offense status.
+    # PL 70.05 only covers Class A-I (murder/arson/kidnap), B, C, D felonies.
+    # Class E/A-II and misdemeanors fall through to standard sentencing.
+    if (
+        is_felony(effective_classification)
+        and case_facts.defendant_age_category == AgeCategory.JUVENILE_OFFENDER
+        and _class_key(effective_classification) in ("ClassA_I", "ClassB", "ClassC", "ClassD")
+    ):
+        primary = _resolve_juvenile_offender_disposition(
+            effective_classification, section
+        )
+        dispositions.append(primary)
+        dispositions.extend(
+            _generate_felony_alternatives(effective_classification, vfo, case_facts)
+        )
     # Drug felony routing (PL 70.70/70.71): Article 220/222 non-VFO felonies
     # get determinate sentences with distinct ranges. VFO drug offenses stay
     # on the standard 70.02 path per 70.70(4).
