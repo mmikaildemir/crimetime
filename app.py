@@ -11,90 +11,21 @@ Run:
 """
 
 import json
-import re
 from pathlib import Path
 from copy import deepcopy
 
-import requests
 import streamlit as st
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
+from crimetime.legislation import (
+    CLASSIFICATIONS,
+    fetch_section,
+    parse_article,
+    parse_classification,
+)
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 LISTS_PATH = DATA_DIR / "lists.json"
 SENTENCING_PATH = DATA_DIR / "sentencing_tables.json"
-
-_OPEN_LEG_KEY = os.getenv("OPEN_LEGISLATION_API_KEY", "").strip().strip("'").strip('"')
-_OPEN_LEG_BASE = "https://legislation.nysenate.gov/api/3/laws"
-
-CLASSIFICATIONS = [
-    "ClassA_I_Felony", "ClassA_II_Felony",
-    "ClassB_Felony", "ClassC_Felony", "ClassD_Felony", "ClassE_Felony",
-    "ClassB_Violent_Felony", "ClassC_Violent_Felony",
-    "ClassD_Violent_Felony", "ClassE_Violent_Felony",
-    "ClassA_Misdemeanor", "ClassB_Misdemeanor", "Unclassified_Misdemeanor",
-    "Violation",
-]
-
-# Maps statute text patterns to our classification enum
-_CLASS_TEXT_MAP = {
-    r"class\s+a[-\s]?i\s+felony": "ClassA_I_Felony",
-    r"class\s+a[-\s]?ii\s+felony": "ClassA_II_Felony",
-    r"class\s+b\s+felony": "ClassB_Felony",
-    r"class\s+c\s+felony": "ClassC_Felony",
-    r"class\s+d\s+felony": "ClassD_Felony",
-    r"class\s+e\s+felony": "ClassE_Felony",
-    r"class\s+a\s+misdemeanor": "ClassA_Misdemeanor",
-    r"class\s+b\s+misdemeanor": "ClassB_Misdemeanor",
-    r"is\s+a\s+violation(?!\s+of)": "Violation",
-}
-
-
-def _fetch_statute(section: str, law_id: str = "PEN") -> dict | None:
-    """Fetch a statute from the NYS Open Legislation API."""
-    if not _OPEN_LEG_KEY:
-        return None
-    try:
-        resp = requests.get(
-            f"{_OPEN_LEG_BASE}/{law_id}/{section}",
-            params={"key": _OPEN_LEG_KEY, "full": "true"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        if data.get("success"):
-            return data.get("result")
-    except Exception:
-        pass
-    return None
-
-
-def _parse_classification(statute_text: str) -> str | None:
-    """Parse the classification from statute text.
-
-    Statutes end with patterns like 'is a class E felony' or 'is a class A misdemeanor'.
-    Finds the earliest classification mention in the text (the base classification
-    always appears before any conditional escalation clauses).
-    """
-    # Normalize: replace literal \n (backslash + n) with spaces, collapse whitespace
-    text = statute_text.replace("\\n", " ")
-    text_lower = re.sub(r"\s+", " ", text.lower())
-    best_match = None
-    best_pos = len(text_lower)
-    for pattern, classification in _CLASS_TEXT_MAP.items():
-        m = re.search(pattern, text_lower)
-        if m and m.start() < best_pos:
-            best_pos = m.start()
-            best_match = classification
-    return best_match
-
-
-def _parse_article(section: str) -> int:
-    """Derive article number from section (e.g. 120.70 -> 120)."""
-    parts = section.split(".")
-    return int(parts[0]) if parts[0].isdigit() else 0
 
 
 # ---------------------------------------------------------------------------
@@ -128,12 +59,12 @@ def offenses_tab():
         # so we can set session_state values that the widgets will pick up
         if st.session_state.get("_auto_resolve_triggered"):
             section_to_resolve = st.session_state.pop("_auto_resolve_triggered")
-            result = _fetch_statute(section_to_resolve)
+            result = fetch_section(section_to_resolve)
             if result:
                 name = result.get("title", "")
                 text = result.get("text", "")
-                classification = _parse_classification(text)
-                article = _parse_article(section_to_resolve)
+                classification = parse_classification(text)
+                article = parse_article(section_to_resolve)
                 st.session_state["add_name"] = name
                 st.session_state["add_article"] = article
                 if classification:
