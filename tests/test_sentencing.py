@@ -685,8 +685,9 @@ class TestVFOWithNonVFOPriorStatus:
         assert det[0].term.min_value == 5
 
     def test_class_e_vfo_with_70_08_falls_back_to_first_offender(self):
-        """§130.53 (Class E VFO) + 70.08 → 70.02 first offender, because
-        PL 70.08(3) has no Class E provision."""
+        """§130.53 (Class E VFO, Article 130 sex offense) + 70.08 → routes
+        through 70.80(5)(c) predicate violent sex offender path (3-4yr),
+        NOT 70.02 first offender. Sex offenses always go through 70.80."""
         facts = CaseFacts(
             section="130.53",
             prior_record_status=PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08,
@@ -695,5 +696,6 @@ class TestVFOWithNonVFOPriorStatus:
         out = resolve("130.53", facts)
         det = [d for d in out.available_dispositions if d.type.value == "determinate"]
         assert len(det) == 1
-        # 70.02 first-offender Class E: 1.5-4yr
-        assert det[0].term.min_value == 1.5
+        # 70.80(5)(c) Class E: 3-4yr for predicate violent sex offender
+        assert det[0].term.min_value == 3
+        assert det[0].term.max_value == 4

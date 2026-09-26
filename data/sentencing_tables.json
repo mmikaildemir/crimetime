@@ -80,6 +80,29 @@
       "ClassA_II": {"type": "determinate", "termYears": [6, 14], "prsYears": [2.5, 5], "wholeOrHalfYears": true}
     }
   },
+  "sexOffenseFelony": {
+    "_ref": "PL 70.80 — felony sex offense sentencing. Applies to Article 130 felonies, 230.05/06/11/12/13, 255.26/27, and sexually motivated felonies. All get determinate sentences with sex-offense-specific PRS per 70.45(2-a).",
+    "firstOffender_70_80_4": {
+      "ClassB": {"type": "determinate", "termYears": [5, 25], "prsYears": [5, 20], "wholeOrHalfYears": true},
+      "ClassC": {"type": "determinate", "termYears": [3.5, 15], "prsYears": [5, 15], "wholeOrHalfYears": true},
+      "ClassD": {"type": "determinate", "termYears": [2, 7], "prsYears": [3, 10], "wholeOrHalfYears": true},
+      "ClassE": {"type": "determinate", "termYears": [1.5, 4], "prsYears": [3, 10], "wholeOrHalfYears": true}
+    },
+    "predicateNonViolent_70_80_5b": {
+      "_ref": "PL 70.80(5)(b) — predicate felony sex offender, non-violent predicate",
+      "ClassB": {"type": "determinate", "termYears": [8, 25], "prsYears": [5, 20], "wholeOrHalfYears": true},
+      "ClassC": {"type": "determinate", "termYears": [5, 15], "prsYears": [5, 15], "wholeOrHalfYears": true},
+      "ClassD": {"type": "determinate", "termYears": [3, 7], "prsYears": [3, 10], "wholeOrHalfYears": true},
+      "ClassE": {"type": "determinate", "termYears": [2, 4], "prsYears": [3, 10], "wholeOrHalfYears": true}
+    },
+    "predicateViolent_70_80_5c": {
+      "_ref": "PL 70.80(5)(c) — predicate felony sex offender, violent predicate",
+      "ClassB": {"type": "determinate", "termYears": [9, 25], "prsYears": [5, 20], "wholeOrHalfYears": true},
+      "ClassC": {"type": "determinate", "termYears": [6.5, 15], "prsYears": [5, 15], "wholeOrHalfYears": true},
+      "ClassD": {"type": "determinate", "termYears": [4, 7], "prsYears": [3, 10], "wholeOrHalfYears": true},
+      "ClassE": {"type": "determinate", "termYears": [3, 4], "prsYears": [3, 10], "wholeOrHalfYears": true}
+    }
+  },
   "violation": {
     "allOffenders": {
       "type": "definite/discharge/fine",

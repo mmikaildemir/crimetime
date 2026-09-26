@@ -93,6 +93,23 @@ def _is_drug_offense(offense: dict) -> bool:
     return article in (220, 222)
 
 
+# Felony sex offense sections outside Article 130 (per PL 70.80(1)(a))
+_SEX_OFFENSE_EXTRA_SECTIONS = {
+    "230.05", "230.06", "230.11", "230.12", "230.13",
+    "255.26", "255.27",
+}
+
+
+def _is_sex_offense(offense: dict, section: str) -> bool:
+    """Check if an offense is a felony sex offense per PL 70.80(1)(a).
+    Article 130 felonies, specific 230/255 sections, and sexually motivated
+    felonies (checked via SMF eligibility)."""
+    article = offense.get("article", 0)
+    if article == 130:
+        return True
+    return section in _SEX_OFFENSE_EXTRA_SECTIONS
+
+
 def _resolve_drug_felony_disposition(
     classification: str,
     section: str,
@@ -146,6 +163,65 @@ def _resolve_drug_felony_disposition(
             min_years=row["prsYears"][0],
             max_years=row["prsYears"][1],
             statute_refs=["PL 70.45(2)"],
+        )
+    return disp, prs
+
+
+def _resolve_sex_offense_felony_disposition(
+    classification: str,
+    section: str,
+    prior_status: PriorRecordStatus,
+) -> tuple[Disposition, Optional[PostReleaseSupervision]]:
+    """Resolve a felony sex offense disposition per PL 70.80.
+
+    All felony sex offenses get determinate sentences with sex-offense-specific
+    PRS per 70.45(2-a). Routing:
+    - First offender → 70.80(4) ranges (same as 70.02(3) VFO ranges)
+    - Predicate (second felony) with non-violent predicate → 70.80(5)(b)
+    - Predicate (second felony) with violent predicate → 70.80(5)(c)
+    """
+    tables = reference.get_sex_offense_felony_table()
+    cls_key = _class_key(classification)
+    is_second_felony = prior_status in (
+        PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
+        PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04,
+        PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10,
+        PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08,
+    )
+    is_violent_predicate = prior_status in (
+        PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04,
+        PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08,
+    )
+
+    if is_second_felony:
+        if is_violent_predicate:
+            table_key = "predicateViolent_70_80_5c"
+            statute = "PL 70.80(5)(c)"
+        else:
+            table_key = "predicateNonViolent_70_80_5b"
+            statute = "PL 70.80(5)(b)"
+    else:
+        table_key = "firstOffender_70_80_4"
+        statute = "PL 70.80(4)"
+
+    row = tables.get(table_key, {}).get(cls_key)
+    if row is None:
+        raise ValueError(
+            f"No {table_key} entry for {cls_key} (section {section})"
+        )
+    term = row["termYears"]
+    disp = Disposition(
+        type=DispositionType.DETERMINATE,
+        label=f"Determinate sentence of {term[0]}–{term[1]} years",
+        statute_refs=[statute],
+        term=TermRange(min_value=term[0], max_value=term[1]),
+    )
+    prs = None
+    if "prsYears" in row:
+        prs = PostReleaseSupervision(
+            min_years=row["prsYears"][0],
+            max_years=row["prsYears"][1],
+            statute_refs=["PL 70.45(2-a)"],
         )
     return disp, prs
 
@@ -995,6 +1071,22 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
         dispositions.append(primary)
         dispositions.extend(
             _generate_felony_alternatives(effective_classification, vfo, case_facts)
+        )
+    # Sex offense routing (PL 70.80/60.13): Article 130 + specific 230/255
+    # felonies get determinate sentences with sex-offense PRS per 70.45(2-a).
+    elif (
+        is_felony(effective_classification)
+        and _is_sex_offense(offense, section)
+        and effective_classification not in ("ClassA_I_Felony", "ClassA_II_Felony")
+    ):
+        primary, prs = _resolve_sex_offense_felony_disposition(
+            effective_classification, section, case_facts.prior_record_status
+        )
+        if prs:
+            primary.prs = prs
+        dispositions.append(primary)
+        dispositions.extend(
+            _generate_felony_alternatives(effective_classification, True, case_facts)
         )
     elif is_felony(effective_classification):
         primary, prs = _resolve_primary_felony_disposition(

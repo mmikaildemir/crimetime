@@ -193,3 +193,8 @@ def get_offense_overrides() -> dict[str, Any]:
 def get_drug_felony_table() -> dict[str, Any]:
     """Return the drug felony sentencing tables (PL 70.70 / 70.71)."""
     return _load_sentencing().get("drugFelony", {})
+
+
+def get_sex_offense_felony_table() -> dict[str, Any]:
+    """Return the felony sex offense sentencing tables (PL 70.80)."""
+    return _load_sentencing().get("sexOffenseFelony", {})
