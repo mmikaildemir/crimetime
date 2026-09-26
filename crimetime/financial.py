@@ -16,6 +16,25 @@ from .models import (
 from .resolvers import is_felony, is_misdemeanor, is_violation
 
 
+# Sex offense sections for supplemental fee (PL 60.35(1)(b))
+_SEX_OFFENSE_FEE_SECTIONS = {
+    # Article 130 sex offenses
+    **{f"130.{s}": True for s in ["25", "30", "35", "40", "45", "50", "55", "60",
+                                  "65", "65-a", "66", "67", "70", "75", "80",
+                                  "85", "90", "95", "96"]},
+    # Incest (255.25/26/27)
+    "255.25": True, "255.26": True, "255.27": True,
+    # Article 263 (child sexual performance)
+    **{f"263.{s}": True for s in ["05", "10", "11", "12", "15", "16"]},
+}
+
+
+def _is_sex_offense_for_fee(section: str) -> bool:
+    """Check if a section triggers the supplemental sex-offender victim fee
+    per PL 60.35(1)(b)."""
+    return section in _SEX_OFFENSE_FEE_SECTIONS
+
+
 def _classify_level(classification: str) -> str:
     """Map a classification string to a level key: 'felony', 'misdemeanor', or 'violation'."""
     if is_felony(classification):
@@ -157,6 +176,49 @@ def generate_restitution(victim_seeking_restitution: bool) -> list[FinancialObli
     ]
 
 
+def generate_sex_offender_registration_fee(classification: str, section: str = "") -> FinancialObligation | None:
+    """Generate the sex offender registration fee (PL 60.35(1)(a)(iv)).
+
+    Levied on sex offenders required to register under Correction Law art 6-C.
+    Felony-level only, sex offenses only.
+    """
+    level = _classify_level(classification)
+    if level != "felony":
+        return None
+    if not _is_sex_offense_for_fee(section):
+        return None
+    fin = reference.get_financial_table()
+    data = fin.get("felony", {}).get("sexOffenderRegistrationFee", {})
+    if not data:
+        return None
+    return FinancialObligation(
+        type=FinancialType.MANDATORY_SURCHARGE,
+        label=f"Sex offender registration fee of ${data['amount']}",
+        amount=data["amount"],
+        statute_refs=[data["statuteRef"]],
+    )
+
+
+def generate_supplemental_sex_offender_victim_fee(section: str) -> FinancialObligation | None:
+    """Generate the supplemental sex-offender victim fee (PL 60.35(1)(b)).
+
+    $1,000 levied on convictions for Art 130 felonies, incest (255.25/26/27),
+    and Art 263 offenses.
+    """
+    if not _is_sex_offense_for_fee(section):
+        return None
+    fin = reference.get_financial_table()
+    data = fin.get("felony", {}).get("supplementalSexOffenderVictimFee", {})
+    if not data:
+        return None
+    return FinancialObligation(
+        type=FinancialType.MANDATORY_SURCHARGE,
+        label=f"Supplemental sex-offender victim fee of ${data['amount']}",
+        amount=data["amount"],
+        statute_refs=[data["statuteRef"]],
+    )
+
+
 def generate_collateral_requirements(
     classification: str,
     jail_term_days: float | None = None,
@@ -208,6 +270,7 @@ def generate_all_financial(
     classification: str,
     victim_seeking_restitution: bool = False,
     jail_term_days: float | None = None,
+    section: str = "",
 ) -> list[FinancialObligation]:
     """Generate all applicable financial obligations for a classification."""
     obligations: list[FinancialObligation] = []
@@ -219,6 +282,15 @@ def generate_all_financial(
     dna_fee = generate_dna_databank_fee(classification)
     if dna_fee is not None:
         obligations.append(dna_fee)
+
+    # Sex-offender fees (PL 60.35(1)(a)(iv) + (1)(b))
+    if section:
+        sex_reg_fee = generate_sex_offender_registration_fee(classification, section)
+        if sex_reg_fee is not None:
+            obligations.append(sex_reg_fee)
+        supplemental_fee = generate_supplemental_sex_offender_victim_fee(section)
+        if supplemental_fee is not None:
+            obligations.append(supplemental_fee)
 
     obligations.extend(generate_restitution(victim_seeking_restitution))
 

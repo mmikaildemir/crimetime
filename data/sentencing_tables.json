@@ -709,11 +709,30 @@
         "maxAmount": 5000,
         "altDoubleGain": true,
         "canStandAlone": false,
-        "statuteRef": "PL 80.00(1), 60.01(2)(c)"
+        "statuteRef": "PL 80.00(1), 60.01(2)(c)",
+        "_note": "canStandAlone=false is over-restrictive for C/D/E non-drug felonies per 60.01(3)(b) — only Class B and Art 220 drug felonies forbid fine-only. TODO: gate by class."
+      },
+      "drugFelonyFine": {
+        "_ref": "PL 80.00(1)(c) — drug felony fine schedule",
+        "ClassA_I": 100000,
+        "ClassA_II": 50000,
+        "ClassB": 30000,
+        "ClassC": 15000,
+        "_note": "Overrides standard felony fine for Article 220/222 drug felonies."
       },
       "mandatorySurcharge": {
         "amount": 300,
         "statuteRef": "PL 60.35(1)(a)"
+      },
+      "sexOffenderRegistrationFee": {
+        "amount": 50,
+        "statuteRef": "PL 60.35(1)(a)(iv)",
+        "_note": "Levied on sex offenders required to register under Correction Law art 6-C."
+      },
+      "supplementalSexOffenderVictimFee": {
+        "amount": 1000,
+        "statuteRef": "PL 60.35(1)(b)",
+        "_note": "Levied on convictions for Art 130 felonies, incest (255.25/26/27), and Art 263 offenses."
       },
       "crimeVictimAssistanceFee": {
         "amount": 25,

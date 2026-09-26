@@ -1265,6 +1265,7 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
     financial = generate_all_financial(
         effective_classification,
         victim_seeking_restitution=case_facts.victim_seeking_restitution,
+        section=section,
     )
 
     # Collateral requirements (estimate jail term for surcharge summons)
