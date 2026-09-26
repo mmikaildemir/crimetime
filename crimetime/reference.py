@@ -182,3 +182,9 @@ def get_collateral_table() -> dict[str, Any]:
 
 def get_restitution_table() -> dict[str, Any]:
     return _load_sentencing().get("restitution", {})
+
+
+def get_offense_overrides() -> dict[str, Any]:
+    """Return offense-specific sentencing overrides (e.g. §125.27 20-25yr min,
+    §125.26 life without parole). Keyed by section number."""
+    return _load_sentencing().get("offenseOverrides", {})

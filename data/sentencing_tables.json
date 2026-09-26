@@ -5,6 +5,21 @@
     "violentFelony tables apply when isVFO=true (routes to 70.02 / 70.04 / 70.08) -- now populated. SUNSET WARNING: PL 70.02(2)(a) and 70.04(2) determinate provisions are repealed September 1, 2027 and revert to indeterminate. Tables below reflect pre-sunset (current) law.",
     "If an offense has a statute-specific sentencing carve-out (rare, e.g. certain weapon offenses), override at the offense level, not here."
   ],
+  "offenseOverrides": {
+    "_ref": "PL 70.00(3)(a) — offense-specific sentencing for Class A-I felonies",
+    "_note": "Overrides the standard Class A-I indeterminate (15-25yr min to life) for offenses with statutory minimum carve-outs. Applied after modifier bumps but before disposition computation.",
+    "125.27": {
+      "minYears": [20, 25],
+      "_ref": "PL 70.00(3)(a)(i)(A) — murder in the first degree: min 20-25yr"
+    },
+    "125.26": {
+      "lifeWithoutParole": true,
+      "_ref": "PL 70.00(3)(a)(i)(B) — aggravated murder: life without parole"
+    },
+    "125.25": {
+      "_note": "Murder 2nd subd 5 (cop-killer provision) gets life without parole per 70.00(3)(a)(i)(B). Not yet implemented — requires subdivision-level override modeling. Other subdivisions use standard A-I sentencing."
+    }
+  },
   "violation": {
     "allOffenders": {
       "type": "definite/discharge/fine",

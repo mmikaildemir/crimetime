@@ -459,3 +459,114 @@ class TestTerrorismBumpClassBToAI:
         """Class A-I is sentenced via indeterminate (70.00), not determinate."""
         primary = output.available_dispositions[0]
         assert primary.type.value == "indeterminate"
+
+
+class TestTerrorismAILifeWithoutParole:
+    """§125.27 (murder 1st, Class A-I, terrorism-eligible) with
+    terrorism_motivated=True → life imprisonment without parole per
+    §490.25(2)(d). Overrides all dispositions."""
+
+    @pytest.fixture
+    def output(self):
+        facts = CaseFacts(
+            section="125.27",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+            terrorism_motivated=True,
+        )
+        return resolve("125.27", facts)
+
+    def test_modifier_recorded(self, output):
+        terror_mods = [m for m in output.modifiers_applied if m.modifier_type == "terrorism"]
+        assert len(terror_mods) == 1
+        assert terror_mods[0].branch == "life_without_parole"
+
+    def test_life_without_parole_disposition(self, output):
+        """§490.25(2)(d): sentence shall be life without parole."""
+        lwop = [
+            d for d in output.available_dispositions
+            if d.type.value == "life_without_parole"
+        ]
+        assert len(lwop) == 1
+        assert lwop[0].label == "Life imprisonment without parole"
+
+    def test_no_alternative_dispositions(self, output):
+        """Life without parole replaces all other dispositions."""
+        assert len(output.available_dispositions) == 1
+
+
+# ---------------------------------------------------------------------------
+# Offense-specific A-I sentencing overrides (PL 70.00(3)(a))
+# ---------------------------------------------------------------------------
+
+
+class TestOffenseOverrideMurderFirst:
+    """§125.27 (murder 1st, Class A-I) has a 20-25yr minimum per
+    PL 70.00(3)(a)(i)(A), vs the standard 15-25yr for other A-I felonies."""
+
+    @pytest.fixture
+    def output(self):
+        facts = CaseFacts(
+            section="125.27",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+        )
+        return resolve("125.27", facts)
+
+    def test_min_period_is_20(self, output):
+        """§70.00(3)(a)(i)(A): murder 1st min is 20-25yr, not 15-25yr."""
+        primary = output.available_dispositions[0]
+        assert primary.term.min_value == 20
+
+    def test_indeterminate(self, output):
+        assert output.available_dispositions[0].type.value == "indeterminate"
+
+
+class TestOffenseOverrideAggravatedMurder:
+    """§125.26 (aggravated murder, Class A-I) gets life without parole per
+    PL 70.00(3)(a)(i)(B)."""
+
+    @pytest.fixture
+    def output(self):
+        facts = CaseFacts(
+            section="125.26",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+        )
+        return resolve("125.26", facts)
+
+    def test_life_without_parole(self, output):
+        lwop = [
+            d for d in output.available_dispositions
+            if d.type.value == "life_without_parole"
+        ]
+        assert len(lwop) == 1
+
+    def test_no_alternative_dispositions(self, output):
+        assert len(output.available_dispositions) == 1
+
+
+class TestOffenseOverrideWithHateCrime:
+    """§125.27 (murder 1st) with hate crime — the hate crime A-I floor (20yr)
+    and the offense-specific override (20yr) should not conflict; the offense
+    override is already >= the hate crime floor."""
+
+    @pytest.fixture
+    def output(self):
+        facts = CaseFacts(
+            section="125.27",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+            hate_crime_motivated=True,
+        )
+        return resolve("125.27", facts)
+
+    def test_min_period_20(self, output):
+        """Both the offense override and the hate crime floor require 20yr min."""
+        primary = output.available_dispositions[0]
+        assert primary.term.min_value >= 20
+
+    def test_hate_crime_modifier_recorded(self, output):
+        mod = _hc_modifier(output)
+        assert mod is not None
+        assert mod.branch == "ClassA_I"

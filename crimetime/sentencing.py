@@ -693,7 +693,13 @@ def _apply_hatecrime_floors(
                     max_value=max(primary.term.max_value, floor["maxTermMin"]),
                     unit=primary.term.unit,
                 )
-        # 70.05 (juvenile) and 70.08 (persistent VFO) not yet handled — TODO
+        # 70.05 (juvenile offender): §485.10(3)(d) sets a 4-year max floor,
+        # but the codebase does not yet model the juvenile offender sentencing
+        # track (no JUVENILE age category, no 70.05 routing in tables). Blocked
+        # on that larger work — see TODO.md.
+        # 70.08 (persistent violent felony offender): §485.10(3) does NOT list
+        # a floor for 70.08. The existing 70.08 minimum (20-25yr for Class B)
+        # already exceeds all hate crime floor values, so no floor is needed.
 
     elif branch == "ClassA_I":
         min_period = bump_table.get("ClassA_I", {}).get("minPeriod", 20)
@@ -826,6 +832,47 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
             _apply_hatecrime_floors(
                 dispositions, vfo, case_facts.prior_record_status, mod.branch
             )
+
+    # Terrorism A-I → life without parole (§490.25(2)(d)) — overrides all
+    # dispositions: the sentence is flat life imprisonment without parole.
+    for mod in modifiers_applied:
+        if mod.modifier_type == "terrorism" and mod.branch == "life_without_parole":
+            lwop = Disposition(
+                type=DispositionType.LIFE_WITHOUT_PAROLE,
+                label="Life imprisonment without parole",
+                statute_refs=["PL 490.25(2)(d)"],
+                conditions="Terrorism with Class A-I specified offense — sentence shall be life without parole",
+            )
+            dispositions = [lwop]
+            break
+
+    # Offense-specific sentencing overrides (PL 70.00(3)(a)) — e.g. §125.27
+    # murder 1st has a 20-25yr minimum (vs standard 15-25yr); §125.26
+    # aggravated murder gets life without parole. Only applies to Class A-I
+    # felonies without a terrorism override (terrorism takes precedence).
+    offense_overrides = reference.get_offense_overrides()
+    override = offense_overrides.get(section)
+    has_terrorism_lwop = any(
+        m.modifier_type == "terrorism" and m.branch == "life_without_parole"
+        for m in modifiers_applied
+    )
+    if override and not has_terrorism_lwop:
+        if override.get("lifeWithoutParole"):
+            dispositions = [Disposition(
+                type=DispositionType.LIFE_WITHOUT_PAROLE,
+                label="Life imprisonment without parole",
+                statute_refs=[override.get("_ref", "PL 70.00(3)(a)")],
+                conditions=f"Offense-specific override for §{section}",
+            )]
+        elif "minYears" in override and dispositions:
+            min_override = override["minYears"]
+            primary = dispositions[0]
+            if primary.term:
+                primary.term = TermRange(
+                    min_value=max(primary.term.min_value, min_override[0]),
+                    max_value=max(primary.term.max_value, min_override[1]),
+                    unit=primary.term.unit,
+                )
 
     # Exceptions
     exceptions = generate_all_exceptions(

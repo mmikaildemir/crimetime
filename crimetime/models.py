@@ -55,6 +55,7 @@ class DispositionType(str, Enum):
     CONDITIONAL_DISCHARGE = "conditional_discharge"
     UNCONDITIONAL_DISCHARGE = "unconditional_discharge"
     FINE = "fine"
+    LIFE_WITHOUT_PAROLE = "life_without_parole"
 
 
 class ExceptionType(str, Enum):
