@@ -86,6 +86,70 @@ def _class_key(classification: str) -> str:
 _SPECIAL_70_08_AII_SECTIONS = {"130.95", "130.96"}
 
 
+def _is_drug_offense(offense: dict) -> bool:
+    """Check if an offense is a drug felony (Article 220 or 222) per
+    PL 70.70/70.71. These take determinate sentences distinct from 70.00/70.02."""
+    article = offense.get("article", 0)
+    return article in (220, 222)
+
+
+def _resolve_drug_felony_disposition(
+    classification: str,
+    section: str,
+    prior_status: PriorRecordStatus,
+) -> tuple[Disposition, Optional[PostReleaseSupervision]]:
+    """Resolve a drug felony disposition per PL 70.70 (non-A) or 70.71 (A).
+
+    Drug felonies get determinate sentences with distinct ranges. VFO drug
+    offenses are handled by the standard 70.02 path (caller checks vfo first).
+    """
+    tables = reference.get_drug_felony_table()
+    cls_key = _class_key(classification)
+    is_class_a = cls_key in ("ClassA_I", "ClassA_II")
+    is_second_felony = prior_status in (
+        PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
+        PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04,
+        PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10,
+        PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08,
+    )
+
+    if is_class_a:
+        if is_second_felony:
+            table_key = "secondFelonyDrugOffender_A_70_71_3"
+            statute = "PL 70.71(3)"
+        else:
+            table_key = "firstFelonyDrugOffender_A_70_71_2"
+            statute = "PL 70.71(2)"
+    else:
+        if is_second_felony:
+            table_key = "secondFelonyDrugOffender_70_70_3"
+            statute = "PL 70.70(3)"
+        else:
+            table_key = "firstFelonyDrugOffender_70_70_2"
+            statute = "PL 70.70(2)"
+
+    row = tables.get(table_key, {}).get(cls_key)
+    if row is None:
+        raise ValueError(
+            f"No {table_key} entry for {cls_key} (section {section})"
+        )
+    term = row["termYears"]
+    disp = Disposition(
+        type=DispositionType.DETERMINATE,
+        label=f"Determinate sentence of {term[0]}–{term[1]} years",
+        statute_refs=[statute],
+        term=TermRange(min_value=term[0], max_value=term[1]),
+    )
+    prs = None
+    if "prsYears" in row:
+        prs = PostReleaseSupervision(
+            min_years=row["prsYears"][0],
+            max_years=row["prsYears"][1],
+            statute_refs=["PL 70.45(2)"],
+        )
+    return disp, prs
+
+
 def _normalize_prior_status(
     classification: str,
     section: str,
@@ -915,7 +979,24 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
     # Primary disposition + PRS
     dispositions: list[Disposition] = []
 
-    if is_felony(effective_classification):
+    # Drug felony routing (PL 70.70/70.71): Article 220/222 non-VFO felonies
+    # get determinate sentences with distinct ranges. VFO drug offenses stay
+    # on the standard 70.02 path per 70.70(4).
+    if (
+        is_felony(effective_classification)
+        and not vfo
+        and _is_drug_offense(offense)
+    ):
+        primary, prs = _resolve_drug_felony_disposition(
+            effective_classification, section, case_facts.prior_record_status
+        )
+        if prs:
+            primary.prs = prs
+        dispositions.append(primary)
+        dispositions.extend(
+            _generate_felony_alternatives(effective_classification, vfo, case_facts)
+        )
+    elif is_felony(effective_classification):
         primary, prs = _resolve_primary_felony_disposition(
             effective_classification, section, vfo, case_facts.prior_record_status
         )

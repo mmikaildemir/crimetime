@@ -57,6 +57,29 @@
       "_note": "Murder 2nd subd 5 (cop-killer provision) gets life without parole per 70.00(3)(a)(i)(B). Not yet implemented — requires subdivision-level override modeling. Other subdivisions use standard A-I sentencing."
     }
   },
+  "drugFelony": {
+    "_ref": "PL 70.70 (non-A) / 70.71 (A) — felony drug offender sentencing. Applies to Article 220 and 222 felonies. VFO drug offenses still sentenced per 70.02/70.04/70.08 per 70.70(4).",
+    "firstFelonyDrugOffender_70_70_2": {
+      "ClassB": {"type": "determinate", "termYears": [1, 9], "prsYears": [1, 2], "wholeOrHalfYears": true},
+      "ClassC": {"type": "determinate", "termYears": [1, 5.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
+      "ClassD": {"type": "determinate", "termYears": [1, 2.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
+      "ClassE": {"type": "determinate", "termYears": [1, 1.5], "prsYears": [1, 2], "wholeOrHalfYears": true}
+    },
+    "secondFelonyDrugOffender_70_70_3": {
+      "ClassB": {"type": "determinate", "termYears": [2, 12], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
+      "ClassC": {"type": "determinate", "termYears": [1.5, 8], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
+      "ClassD": {"type": "determinate", "termYears": [1.5, 4], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
+      "ClassE": {"type": "determinate", "termYears": [1.5, 2], "prsYears": [1.5, 3], "wholeOrHalfYears": true}
+    },
+    "firstFelonyDrugOffender_A_70_71_2": {
+      "ClassA_I": {"type": "determinate", "termYears": [8, 20], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
+      "ClassA_II": {"type": "determinate", "termYears": [3, 10], "prsYears": [2.5, 5], "wholeOrHalfYears": true}
+    },
+    "secondFelonyDrugOffender_A_70_71_3": {
+      "ClassA_I": {"type": "determinate", "termYears": [12, 24], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
+      "ClassA_II": {"type": "determinate", "termYears": [6, 14], "prsYears": [2.5, 5], "wholeOrHalfYears": true}
+    }
+  },
   "violation": {
     "allOffenders": {
       "type": "definite/discharge/fine",

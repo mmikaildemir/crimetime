@@ -188,3 +188,8 @@ def get_offense_overrides() -> dict[str, Any]:
     """Return offense-specific sentencing overrides (e.g. §125.27 20-25yr min,
     §125.26 life without parole). Keyed by section number."""
     return _load_sentencing().get("offenseOverrides", {})
+
+
+def get_drug_felony_table() -> dict[str, Any]:
+    """Return the drug felony sentencing tables (PL 70.70 / 70.71)."""
+    return _load_sentencing().get("drugFelony", {})
