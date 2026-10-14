@@ -508,6 +508,13 @@
       "isSimpleBump": false,
       "requiresPredicateStatus": true,
       "_note": "Not a simple one-class bump — court must apply 485.10(3) minimum floors based on prior record. Requires separate judicial finding.",
+      "floorByStatus": {
+        "_note": "Which 485.10(3) floor applies, by (sentencing track, derived offender status). Statuses not listed get no floor: 70.08 and 70.10 (485.10(3) lists none), drug track (no class B hate-eligible drug offense). 70.05 juvenile floor (3)(d) not applied yet: it is a max-term floor and the juvenile disposition's term holds the minimum period.",
+        "violent_felony": {"first_offender": "70.02", "second_violent_felony_offender_70_04": "70.04", "second_felony_offender_vfo_70_06_6": "70.06"},
+        "nonviolent_felony": {"first_offender": "70.00", "second_felony_offender_70_06": "70.06"},
+        "sex_offense_felony": {"first_offender": "70.02", "sex_offender_predicate_violent_70_80_5c": "70.04"},
+        "_sexTrackNote": "UNVERIFIED: 485.10(3) does not name 70.80. Only 130.35 / 130.70 (class B VFOs) reach this; mapped to the 70.02/70.04 floors as before. Flag for legal review."
+      },
       "floors": {
         "70.00": {"maxTermMin": 6, "_ref": "485.10(3)(a) — non-VFO indeterminate, max term at least 6 years"},
         "70.02": {"termMin": 8, "_ref": "485.10(3)(b) — VFO determinate first offender, term at least 8 years"},

@@ -210,24 +210,9 @@ def _sentence_on_track(ctx: SentencingContext) -> None:
 # it changed anything. They run in ADJUSTMENTS order.
 
 
-def _hate_floor_statute(ctx: SentencingContext) -> Optional[str]:
-    """Which 485.10(3) floor applies, keyed by the governing Article 70 section.
-
-    LEGACY-PARITY: keyed on the offense's VFO flag and the raw predicate
-    counts, as the old status selector did, not on the derived status.
-    """
-    prior = ctx.prior
-    if ctx.vfo and prior.predicate_felonies == 0:
-        return "70.02"
-    if ctx.vfo and prior.predicate_vfos == 1:
-        return "70.04"
-    if not ctx.vfo and prior.predicate_felonies == 0:
-        return "70.00"
-    if not ctx.vfo and prior.predicate_felonies == 1 and prior.predicate_vfos == 0:
-        return "70.06"
-    # 70.05 (juvenile offender): §485.10(3)(d) sets a 4-year max floor — not yet applied.
-    # 70.08: §485.10(3) lists no floor; the 70.08 minimums already exceed them.
-    return None
+def _hate_floor_statute(ctx: SentencingContext, class_b: dict) -> Optional[str]:
+    """Which 485.10(3) floor applies, by the governing track and derived status."""
+    return class_b.get("floorByStatus", {}).get(ctx.track.name, {}).get(ctx.status.value)
 
 
 def _raise_primary_min(ctx: SentencingContext, floor: float) -> None:
@@ -248,8 +233,9 @@ def _adjust_hate_crime_floors(ctx: SentencingContext) -> Optional[str]:
     bump_table = reference.get_hatecrime_bump_table()
 
     if hate.branch == "ClassB":
-        statute = _hate_floor_statute(ctx)
-        floor = bump_table.get("ClassB", {}).get("floors", {}).get(statute or "", {})
+        class_b = bump_table.get("ClassB", {})
+        statute = _hate_floor_statute(ctx, class_b)
+        floor = class_b.get("floors", {}).get(statute or "", {})
         value = floor.get("termMin", floor.get("maxTermMin"))
         if value is None:
             return None
