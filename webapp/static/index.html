@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CrimeTime 2.0 — NYS Sentencing Engine</title>
+<link rel="stylesheet" href="/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">⚖️</span>
+    <div>
+      <div class="title">CrimeTime <span class="ver">2.0</span></div>
+      <div class="subtitle">NYS Sentencing Decision Engine · Mockup</div>
+    </div>
+  </div>
+  <div class="status" id="statusDot"><span class="dot"></span><span id="statusText">connecting…</span></div>
+</header>
+
+<main class="layout">
+  <!-- LEFT: offense picker -->
+  <section class="panel panel-left">
+    <div class="panel-head">
+      <h2>Offense</h2>
+    </div>
+    <div class="search-wrap">
+      <input id="search" type="search" placeholder="Search section or name (e.g. 120.02, assault)" autocomplete="off" />
+    </div>
+    <div class="offense-list" id="offenseList"><div class="muted">Loading…</div></div>
+  </section>
+
+  <!-- CENTER: case facts -->
+  <section class="panel panel-center">
+    <div class="panel-head">
+      <h2>Case Facts</h2>
+      <span id="offenseBadge" class="badge-row"></span>
+    </div>
+    <div id="caseFacts" class="case-facts">
+      <div class="empty-state">
+        <div class="big-icon">⚖️</div>
+        <p>Select an offense to begin.</p>
+        <p class="muted small">The form adapts based on statutory eligibility.</p>
+      </div>
+    </div>
+    <div class="resolve-bar">
+      <button id="resolveBtn" class="btn primary" disabled>Resolve Sentencing →</button>
+    </div>
+  </section>
+
+  <!-- RIGHT: output -->
+  <section class="panel panel-right">
+    <div class="panel-head">
+      <h2>Result</h2>
+      <div class="view-toggle">
+        <button class="seg active" data-view="structured">Structured</button>
+        <button class="seg" data-view="memo">Memorandum</button>
+      </div>
+    </div>
+    <div id="result" class="result">
+      <div class="empty-state">
+        <div class="big-icon">📄</div>
+        <p>No output yet.</p>
+        <p class="muted small">Run the engine to see dispositions, exceptions, financials, and collateral.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <span>CrimeTime 2.0 mockup · powered by <code>crimetime.sentencing</code> · not legal advice</span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

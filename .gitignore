@@ -21,3 +21,9 @@ wheels/
 
 # Ingestion pipeline cache (regenerable API responses)
 data/staging/cache/
+
+# Static site build output (scripts/build_site.py; deployed by .github/workflows/pages.yml)
+_site/
+
+# Office lock files
+~$*
