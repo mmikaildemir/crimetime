@@ -17,6 +17,7 @@ from crimetime.exceptions import _DV_EXCLUDED_SECTIONS
 from crimetime.models import (
     AgeCategory,
     CaseFacts,
+    PriorRecord,
     PriorRecordStatus,
 )
 from crimetime.reference import get_all_offenses
@@ -45,7 +46,9 @@ class ResolveRequest(BaseModel):
     attempt_of_section: str | None = None
     is_conspiracy: bool = False
     conspiracy_of_section: str | None = None
-    prior_record_status: str = "first_offender"
+    predicate_felonies: int = 0
+    predicate_vfos: int = 0
+    prior_record_status: str | None = None  # deprecated; used only if no predicate counts are sent
     plea_from_armed_felony_indictment: bool = False
     armed_felony_mitigating_factor: bool = False
     armed_felony_minor_participation: bool = False
@@ -68,26 +71,6 @@ class ResolveRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _prior_status_options(classification: str, vfo: bool) -> list[dict]:
-    options = [
-        (PriorRecordStatus.FIRST_OFFENDER, "First offender", "first_offender"),
-        (PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06, "Second felony offender (PL 70.06)", "second_felony_offender_70_06"),
-        (PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04, "Second violent felony offender (PL 70.04)", "second_violent_felony_offender_70_04"),
-        (PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10, "Persistent felony offender (PL 70.10)", "persistent_felony_offender_70_10"),
-        (PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08, "Persistent violent felony offender (PL 70.08)", "persistent_violent_felony_offender_70_08"),
-    ]
-    valid = []
-    for ps, lbl, val in options:
-        if ps in (PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04,
-                  PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08) and not vfo:
-            continue
-        if ps in (PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
-                  PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10) and not has_predicate_exposure(classification):
-            continue
-        valid.append({"label": lbl, "value": val})
-    return valid
-
-
 def _eligibility(section: str, classification: str) -> dict:
     is_fel = is_felony(classification)
     return {
@@ -106,16 +89,26 @@ def _eligibility(section: str, classification: str) -> dict:
 
 
 def _build_case_facts(req: ResolveRequest) -> CaseFacts:
-    try:
-        prior = PriorRecordStatus(req.prior_record_status)
-    except ValueError:
-        prior = PriorRecordStatus.FIRST_OFFENDER
+    if req.predicate_vfos > req.predicate_felonies:
+        raise ValueError("Violent predicates cannot exceed the number of predicate felonies")
+    prior_kwargs: dict[str, Any] = {
+        "prior_record": PriorRecord(
+            predicate_felonies=req.predicate_felonies, predicate_vfos=req.predicate_vfos
+        )
+    }
+    if req.prior_record_status and not (req.predicate_felonies or req.predicate_vfos):
+        try:
+            prior_kwargs = {"prior_record_status": PriorRecordStatus(req.prior_record_status)}
+        except ValueError:
+            pass  # unknown legacy value: keep the (empty) predicate record
     try:
         age = AgeCategory(req.defendant_age_category)
     except ValueError:
         age = AgeCategory.ADULT
-    fields = req.model_dump(exclude={"prior_record_status", "defendant_age_category"})
-    return CaseFacts(**fields, prior_record_status=prior, defendant_age_category=age)
+    fields = req.model_dump(exclude={
+        "predicate_felonies", "predicate_vfos", "prior_record_status", "defendant_age_category",
+    })
+    return CaseFacts(**fields, **prior_kwargs, defendant_age_category=age)
 
 
 def _offense_or_raise(section: str) -> dict:
@@ -151,7 +144,6 @@ def offense_detail(section: str) -> dict:
     off = _offense_or_raise(section)
     classification = off.get("classification", "Violation")
     elig = _eligibility(section, classification)
-    prior_opts = _prior_status_options(classification, elig["vfo"]) if elig["is_felony"] else []
     attempt_preview = None
     if off.get("isAttempt") and off.get("attemptOf"):
         target = get_all_offenses().get(off["attemptOf"])
@@ -176,7 +168,6 @@ def offense_detail(section: str) -> dict:
         "conspiracy_of": off.get("conspiracyOf"),
         "conditional_classification": off.get("conditionalClassification"),
         "eligibility": elig,
-        "prior_status_options": prior_opts,
         "attempt_preview": attempt_preview,
     }
 

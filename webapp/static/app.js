@@ -122,13 +122,15 @@ function renderCaseFacts(d) {
   `));
 
   // Prior record (felonies only)
-  if (e.is_felony && d.prior_status_options.length) {
-    const opts = d.prior_status_options.map(o =>
-      `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+  if (e.is_felony) {
     wrap.appendChild(group('Defendant prior record', `
-      <label class="field"><span>Prior record status</span>
-        <select id="cf_prior">${opts}</select>
-      </label>`));
+      <div class="field-row">
+        <label class="field"><span>Prior predicate felonies</span>
+          <input type="number" id="cf_pred_felonies" min="0" step="1" value="0"></label>
+        <label class="field"><span>…of which violent (VFO)</span>
+          <input type="number" id="cf_pred_vfos" min="0" step="1" value="0"></label>
+      </div>
+      <div class="hint-line">Qualifying predicates per PL 70.06(1)(b) (10-year lookback). The engine derives the offender status for this offense.</div>`));
   }
 
   // Offense shape (felony/misdemeanor)
@@ -280,7 +282,8 @@ function buildRequestBody(d) {
   };
   const body = {
     section: d.section,
-    prior_record_status: e.is_felony ? (val('cf_prior') || 'first_offender') : 'first_offender',
+    predicate_felonies: e.is_felony ? (num('cf_pred_felonies') || 0) : 0,
+    predicate_vfos: e.is_felony ? (num('cf_pred_vfos') || 0) : 0,
     hate_crime_motivated: !!val('cf_hate'),
     sexually_motivated: !!val('cf_smf'),
     terrorism_motivated: !!val('cf_terror'),
@@ -329,6 +332,7 @@ function renderResult(out) {
   head.appendChild(metric('Final classification', out.classification, true));
   head.appendChild(metric('Base classification', out.base_classification || '(no modifier)'));
   head.appendChild(metric('VFO', out.is_vfo ? 'Yes' : 'No'));
+  if (out.offender_status_label) head.appendChild(metric('Offender status', out.offender_status_label));
   head.appendChild(metric('Dispositions', out.available_dispositions.length));
   wrap.appendChild(head);
 
@@ -377,6 +381,18 @@ function renderResult(out) {
         ${c.statute_refs?.length ? `<div class="refs">${c.statute_refs.map(escapeHtml).join(', ')}</div>` : ''}`;
       wrap.appendChild(card);
     }
+  }
+
+  // decision trace
+  if (out.trace?.length) {
+    wrap.appendChild(sectionTitle('How this was decided'));
+    const ol = el('ol', 'trace');
+    for (const t of out.trace) {
+      ol.appendChild(el('li', '',
+        `<span class="trace-stage">${escapeHtml(t.stage.replace(/_/g, ' '))}</span> ${escapeHtml(t.detail)}` +
+        (t.statute_refs?.length ? ` <span class="muted small">${escapeHtml(t.statute_refs.join('; '))}</span>` : '')));
+    }
+    wrap.appendChild(ol);
   }
 
   // raw JSON expander

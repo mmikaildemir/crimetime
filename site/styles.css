@@ -451,3 +451,8 @@ td.amount, th.amount { text-align: right; white-space: nowrap; font-weight: 700;
   .panel { border: 0; box-shadow: none; height: auto; min-height: 0; }
   .panel-body { overflow: visible; }
 }
+
+/* Decision trace */
+.trace { margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.5; }
+.trace li { margin-bottom: 2px; }
+.trace-stage { display: inline-block; min-width: 92px; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }

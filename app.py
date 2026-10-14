@@ -474,12 +474,12 @@ def _edit_misdemeanor(data):
 def _edit_nonviolent_felony(data):
     st.subheader("Non-Violent Felony")
     nvf = data.get("nonViolentFelony", {})
-    status_keys = ["firstOffender", "secondFelonyOffender_70_06", "persistentFelonyOffender_70_10"]
+    statuses = nvf.get("statuses", {})
 
-    status = st.selectbox("Defendant status", [k for k in status_keys if k in nvf])
+    status = st.selectbox("Offender status", list(statuses), format_func=lambda k: statuses[k].get("label", k))
     if status:
-        status_data = nvf[status]
-        if status == "persistentFelonyOffender_70_10":
+        status_data = statuses[status]["rows"]
+        if status == "persistent_felony_offender_70_10":
             st.info("Discretionary — court MAY sentence as Class A-I.")
             ac = status_data.get("allClasses", {})
             ac["possibleMinYears"] = [
@@ -533,22 +533,22 @@ def _edit_nonviolent_felony(data):
                         key=f"nvf_{status}_{cls}_mtr",
                     )
                     row.pop("minTermRule", None)
-        nvf[status] = status_data
+        statuses[status]["rows"] = status_data
     data["nonViolentFelony"] = nvf
 
 
 def _edit_violent_felony(data):
     st.subheader("Violent Felony")
     vf = data.get("violentFelony", {})
-    status_keys = ["firstVFOffender_70_02", "secondViolentFelonyOffender_70_04", "persistentViolentFelonyOffender_70_08"]
+    statuses = vf.get("statuses", {})
 
-    status = st.selectbox("Defendant status", [k for k in status_keys if k in vf])
+    status = st.selectbox("Offender status", list(statuses), format_func=lambda k: statuses[k].get("label", k))
     if status:
-        status_data = vf[status]
-        if status == "persistentViolentFelonyOffender_70_08":
+        block = statuses[status]
+        if status == "persistent_violent_felony_offender_70_08":
             st.warning("70.08 has pre-sunset and post-sunset versions.")
-            version = st.selectbox("Version", ["preSunset_until_2027_09_01", "postSunset_from_2027_09_01"])
-            ver_data = status_data.get(version, {})
+            version = st.selectbox("Version", list(block.get("versions", {})))
+            ver_data = block["versions"].get(version, {})
             for cls in ["ClassA_II", "ClassB", "ClassC", "ClassD"]:
                 if cls not in ver_data:
                     continue
@@ -562,9 +562,9 @@ def _edit_violent_felony(data):
                     ]
                 else:
                     row["minYearsFixed"] = st.number_input(f"{cls} — min years (fixed)", value=row.get("minYearsFixed", 25))
-            ver_data["maxYears"] = "life"
-            status_data[version] = ver_data
+            block["versions"][version] = ver_data
         else:
+            status_data = block["rows"]
             for cls in ["ClassB", "ClassC", "ClassD", "ClassE"]:
                 if cls not in status_data:
                     continue
@@ -584,7 +584,6 @@ def _edit_violent_felony(data):
                         st.number_input(f"{cls} — PRS (upper)", value=prs[1], key=f"vf_{status}_{cls}_prs_hi"),
                     ]
                 row["wholeOrHalfYears"] = st.checkbox(f"{cls} — whole or half years", value=row.get("wholeOrHalfYears", True))
-        vf[status] = status_data
     data["violentFelony"] = vf
 
 

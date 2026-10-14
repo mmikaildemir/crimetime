@@ -145,6 +145,8 @@ def _render_classification_route(out: SentencingOutput) -> str:
         f"**Final classification:** `{out.classification}`  \n"
         f"**Violent felony offense:** {'Yes' if out.is_vfo else 'No'}"
     )
+    if out.offender_status_label:
+        lines[-1] += f"  \n**Offender status:** {out.offender_status_label}"
     return "\n".join(lines) + "\n\n"
 
 

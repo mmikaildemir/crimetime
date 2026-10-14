@@ -21,7 +21,7 @@ from crimetime.exceptions import _DV_EXCLUDED_SECTIONS
 from crimetime.models import (
     AgeCategory,
     CaseFacts,
-    PriorRecordStatus,
+    PriorRecord,
     TermUnit,
 )
 from crimetime.reference import get_all_offenses
@@ -128,7 +128,7 @@ def case_facts_form(section: str, offense: dict) -> CaseFacts:
         st.sidebar.markdown(badge_html, unsafe_allow_html=True)
 
     # Defaults that get filled conditionally
-    prior_status = PriorRecordStatus.FIRST_OFFENDER
+    prior_record = PriorRecord()
     is_attempt = False
     attempt_of_section = None
     is_conspiracy = False
@@ -149,31 +149,19 @@ def case_facts_form(section: str, offense: dict) -> CaseFacts:
     prior_same_section_years = None
     age_category = AgeCategory.ADULT
 
-    # --- Prior record status (felonies only — table selector) ---
+    # --- Prior record (felonies only) — facts; the engine derives the status ---
     if is_fel:
         st.sidebar.header("Defendant prior record")
-        prior_status_options = [
-            (PriorRecordStatus.FIRST_OFFENDER, "First offender"),
-            (PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06, "Second felony offender (PL 70.06)"),
-            (PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04, "Second violent felony offender (PL 70.04)"),
-            (PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10, "Persistent felony offender (PL 70.10)"),
-            (PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08, "Persistent violent felony offender (PL 70.08)"),
-        ]
-        # Filter to statuses that can actually route for this offense
-        valid = []
-        for ps, lbl in prior_status_options:
-            if ps == PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04 and not vfo:
-                continue
-            if ps == PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08 and not vfo:
-                continue
-            if ps in (PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
-                      PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10) and not has_predicate_exposure(classification):
-                continue
-            valid.append((ps, lbl))
-        prior_label = st.sidebar.selectbox(
-            "Prior record status", options=[lbl for _, lbl in valid], index=0
+        predicate_felonies = st.sidebar.number_input(
+            "Prior predicate felonies", min_value=0, step=1, value=0,
+            help="Qualifying predicates per PL 70.06(1)(b) (10-year lookback).",
         )
-        prior_status = next(ps for ps, lbl in valid if lbl == prior_label)
+        predicate_vfos = st.sidebar.number_input(
+            "…of which violent (VFO)", min_value=0, max_value=int(predicate_felonies), step=1, value=0,
+        )
+        prior_record = PriorRecord(
+            predicate_felonies=int(predicate_felonies), predicate_vfos=int(predicate_vfos)
+        )
 
     # --- Offense shape: attempt / conspiracy ---
     # Always ask — the engine downgrades classification (PL 110.05) and
@@ -284,7 +272,7 @@ def case_facts_form(section: str, offense: dict) -> CaseFacts:
         attempt_of_section=attempt_of_section,
         is_conspiracy=is_conspiracy,
         conspiracy_of_section=conspiracy_of_section,
-        prior_record_status=prior_status,
+        prior_record=prior_record,
         plea_from_armed_felony_indictment=plea_from_armed_felony_indictment,
         armed_felony_mitigating_factor=armed_felony_mitigating,
         armed_felony_minor_participation=armed_felony_minor,
@@ -314,6 +302,8 @@ def render_header(out):
     cols[1].metric("Base classification", out.base_classification or "(no modifier)")
     cols[2].metric("VFO", "Yes" if out.is_vfo else "No")
     cols[3].metric("Dispositions", len(out.available_dispositions))
+    if out.offender_status_label:
+        st.caption(f"**Offender status:** {out.offender_status_label}")
 
 
 def render_modifiers(out):
@@ -415,6 +405,15 @@ def render_collateral(out):
                 st.caption(f"Refs: {', '.join(c.statute_refs)}")
 
 
+def render_trace(out):
+    if not out.trace:
+        return
+    with st.expander("How this was decided", expanded=False):
+        for i, t in enumerate(out.trace, 1):
+            refs = f" — _{'; '.join(t.statute_refs)}_" if t.statute_refs else ""
+            st.markdown(f"{i}. `{t.stage}` {t.detail}{refs}")
+
+
 def render_raw_json(out):
     with st.expander("Raw JSON output", expanded=False):
         st.json(json.loads(out.model_dump_json()))
@@ -475,6 +474,7 @@ def main():
             render_exceptions(out)
             render_financials(out)
             render_collateral(out)
+            render_trace(out)
             render_raw_json(out)
 
 
