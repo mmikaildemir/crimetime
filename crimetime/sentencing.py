@@ -1272,7 +1272,7 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
     # Drug felony routing (PL 70.70/70.71): Article 220/222 non-VFO felonies
     # get determinate sentences with distinct ranges. VFO drug offenses stay
     # on the standard 70.02 path per 70.70(4).
-    if (
+    elif (
         is_felony(effective_classification)
         and not vfo
         and _is_drug_offense(offense)
