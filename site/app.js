@@ -19,6 +19,8 @@ const state = {
   selectedSection: null,
   offenseDetail: null,
   lastResult: null,
+  lastRequest: null,
+  lastError: null,
   view: 'structured',
   engineReady: false,
   resolving: false,
@@ -303,6 +305,8 @@ async function resolve() {
   const d = state.offenseDetail;
   if (!d || !state.engineReady) return;
   const body = buildRequestBody(d);
+  state.lastRequest = body;
+  state.lastError = null;
   state.resolving = true;
   updateResolveButton();
   $('#result').innerHTML = '<div class="muted pad"><span class="spinner dark"></span> Calculating…</div>';
@@ -314,6 +318,8 @@ async function resolve() {
       document.querySelector('.panel-right').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   } catch (e) {
+    state.lastResult = null;
+    state.lastError = e.message;
     $('#result').innerHTML = `<div class="alert alert-danger">${escapeHtml(e.message)}</div>`;
   } finally {
     state.resolving = false;
@@ -627,3 +633,55 @@ document.querySelectorAll('.seg').forEach(b => {
 
 $('#result').innerHTML = emptyResult();
 loadOffenses();
+
+// ---------------------------------------------------------------------------
+// Tester feedback → pre-filled GitHub issue (.github/ISSUE_TEMPLATE/tester-feedback.yml)
+// ---------------------------------------------------------------------------
+const FEEDBACK_REPO = 'mmikaildemir/crimetime';
+const FEEDBACK_CONTEXT_MAX = 5000;  // keep the issue URL well under browser limits
+
+function feedbackContext() {
+  const d = state.offenseDetail;
+  const out = state.lastResult;
+  let caseFacts = state.lastRequest;
+  if (!caseFacts && d) {
+    try { caseFacts = buildRequestBody(d); } catch { caseFacts = null; }
+  }
+  const primary = out?.available_dispositions?.[0];
+  return {
+    build: BUILD,
+    page: location.href,
+    browser: navigator.userAgent,
+    offense: d ? `§${d.section} ${d.name} (${d.classification})` : null,
+    case_facts: caseFacts,
+    result: out ? {
+      classification: out.classification,
+      is_vfo: out.is_vfo,
+      sentencing_track: out.sentencing_track,
+      offender_status: out.offender_status_label,
+      primary_disposition: primary?.label,
+      primary_statutes: primary?.statute_refs,
+      dispositions: out.available_dispositions.length,
+    } : null,
+    error: state.lastError,
+  };
+}
+
+function feedbackUrl() {
+  const d = state.offenseDetail;
+  let context = JSON.stringify(feedbackContext(), null, 2);
+  if (context.length > FEEDBACK_CONTEXT_MAX) context = context.slice(0, FEEDBACK_CONTEXT_MAX) + '\n…(truncated)';
+  const params = new URLSearchParams({
+    template: 'tester-feedback.yml',
+    title: `[Feedback] ${d ? `§${d.section} — ` : ''}`,
+    context,
+  });
+  return `https://github.com/${FEEDBACK_REPO}/issues/new?${params}`;
+}
+
+document.querySelectorAll('[data-feedback]').forEach((btn) => {
+  btn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    window.open(feedbackUrl(), '_blank', 'noopener');
+  });
+});
