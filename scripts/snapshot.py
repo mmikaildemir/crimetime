@@ -147,8 +147,8 @@ def _flatten(obj, prefix=""):
 def diff(old: dict[str, dict], new: dict[str, dict], ignore_new_keys: set[str] = frozenset()):
     """Return a list of human-readable difference lines.
 
-    ignore_new_keys: top-level output fields that may be added without
-    counting as a change (e.g. new trace fields).
+    ignore_new_keys: top-level output fields left out of the comparison
+    (e.g. fields added since the snapshot was taken).
     """
     lines = []
     for key in sorted(set(old) | set(new)):
@@ -158,8 +158,9 @@ def diff(old: dict[str, dict], new: dict[str, dict], ignore_new_keys: set[str] =
         if key not in old:
             lines.append(f"+ {key}: scenario added")
             continue
-        o = dict(_flatten(old[key]))
-        n = {p: v for p, v in _flatten(new[key]) if p.split(".")[0].split("[")[0] not in ignore_new_keys}
+        keep = lambda path: path.split(".")[0].split("[")[0] not in ignore_new_keys  # noqa: E731
+        o = {p: v for p, v in _flatten(old[key]) if keep(p)}
+        n = {p: v for p, v in _flatten(new[key]) if keep(p)}
         for path in sorted(set(o) | set(n)):
             if o.get(path, "<absent>") != n.get(path, "<absent>"):
                 lines.append(f"~ {key} {path}: {o.get(path, '<absent>')!r} -> {n.get(path, '<absent>')!r}")

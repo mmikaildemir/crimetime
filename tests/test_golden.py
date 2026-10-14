@@ -19,7 +19,7 @@ from snapshot import diff, load_golden, run_all  # noqa: E402
 
 # Output fields added after the snapshot was taken; their presence alone is
 # not a behaviour change.
-ADDITIVE_FIELDS = {"sentencing_track", "offender_status", "offender_status_label", "trace"}
+ADDITIVE_FIELDS: set[str] = set()
 
 
 def test_engine_matches_golden_snapshot():

@@ -243,6 +243,9 @@ class DrugFelonyTrack(Track):
         return is_felony(ctx.classification) and not ctx.vfo and _is_drug_offense(ctx.offense)
 
     def derive_status(self, ctx):
+        # 70.70(4) / 70.71(4): the predicate was a violent felony.
+        if ctx.prior.predicate_vfos >= 1:
+            return OffenderStatus.SECOND_FELONY_DRUG_OFFENDER_PRIOR_VFO
         if ctx.prior.predicate_felonies >= 1:
             return OffenderStatus.SECOND_FELONY_DRUG_OFFENDER
         return OffenderStatus.FIRST_OFFENDER
