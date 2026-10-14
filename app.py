@@ -495,15 +495,44 @@ def _edit_nonviolent_felony(data):
                 st.markdown(f"**{cls}**")
                 col1, col2 = st.columns(2)
                 with col1:
-                    years = row.get("maxTermYears", [1, 4])
+                    years = row.get("maxTermYears", [3, 4])
                     row["maxTermYears"] = [
-                        st.number_input(f"{cls} — max term (lower)", value=years[0], key=f"nvf_{status}_{cls}_lo"),
-                        st.number_input(f"{cls} — max term (upper)", value=years[1], key=f"nvf_{status}_{cls}_hi"),
+                        st.number_input(f"{cls} — max term floor (years)", value=years[0], key=f"nvf_{status}_{cls}_lo"),
+                        st.number_input(f"{cls} — max term cap (years)", value=years[1], key=f"nvf_{status}_{cls}_hi"),
                     ]
                 with col2:
                     row["altDefiniteMax1yr"] = st.checkbox(f"{cls} — alt definite max 1yr", value=row.get("altDefiniteMax1yr", False))
                     row["probationEligibleYears"] = st.number_input(f"{cls} — probation (years)", value=row.get("probationEligibleYears", 5))
-                row["minTermRule"] = st.text_input(f"{cls} — min term rule", value=row.get("minTermRule", ""))
+                with st.expander(f"{cls} — minimum period rule", expanded=False):
+                    floor_val = row.get("minPeriodFloor")
+                    floor_str = st.text_input(
+                        f"{cls} — min period floor",
+                        value=str(floor_val) if floor_val is not None else "",
+                        placeholder="1 (number) or max/2 (formula)",
+                        key=f"nvf_{status}_{cls}_mpf",
+                    )
+                    ceiling_val = row.get("minPeriodCeiling")
+                    ceiling_str = st.text_input(
+                        f"{cls} — min period ceiling",
+                        value=str(ceiling_val) if ceiling_val is not None else "",
+                        placeholder="max/3 (formula) or empty",
+                        key=f"nvf_{status}_{cls}_mpc",
+                    )
+                    row["minPeriodFloor"] = floor_str.strip() if floor_str.strip() else None
+                    row["minPeriodCeiling"] = ceiling_str.strip() if ceiling_str.strip() else None
+                    row["minPeriodRef"] = st.text_input(
+                        f"{cls} — min period statute ref",
+                        value=row.get("minPeriodRef", ""),
+                        placeholder="PL 70.00(3)(b)",
+                        key=f"nvf_{status}_{cls}_mpr",
+                    )
+                    row["maxTermRef"] = st.text_input(
+                        f"{cls} — max term statute ref",
+                        value=row.get("maxTermRef", ""),
+                        placeholder="PL 70.00(2)(e)",
+                        key=f"nvf_{status}_{cls}_mtr",
+                    )
+                    row.pop("minTermRule", None)
         nvf[status] = status_data
     data["nonViolentFelony"] = nvf
 

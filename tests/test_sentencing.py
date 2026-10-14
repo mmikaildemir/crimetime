@@ -8,7 +8,7 @@ These tests verify the engine produces all of them.
 
 import pytest
 
-from crimetime.models import AgeCategory, CaseFacts, PriorRecordStatus
+from crimetime.models import AgeCategory, CaseFacts, DispositionType, PriorRecordStatus
 from crimetime.sentencing import resolve
 
 
@@ -47,41 +47,10 @@ class TestPL12002BasicCase:
         assert det.prs.min_years == 1.5
         assert det.prs.max_years == 3
 
-    def test_definite_sentence(self, output):
-        """#6: Definite sentence up to 1 year."""
-        definite = [d for d in output.available_dispositions if d.type.value == "definite"]
-        assert len(definite) == 1
-        assert definite[0].term.max_value == 12  # months
-
-    def test_intermittent(self, output):
-        """#7: Intermittent imprisonment available."""
-        intermittent = [d for d in output.available_dispositions if d.type.value == "intermittent"]
-        assert len(intermittent) == 1
-
-    def test_split_sentence(self, output):
-        """#8: Split sentence with imprisonment + probation/CD."""
-        split = [d for d in output.available_dispositions if d.type.value == "split"]
-        assert len(split) == 1
-        assert split[0].split_imprisonment_max_months == 6
-
-    def test_probation(self, output):
-        """#10: Probation 3/4/5 years."""
-        probation = [d for d in output.available_dispositions if d.type.value == "probation"]
-        assert len(probation) == 1
-        assert probation[0].probation_years == [3, 4, 5]
-
-    def test_conditional_discharge(self, output):
-        """#11: Conditional discharge 3 years, record statement required for felony."""
-        cd = [d for d in output.available_dispositions if d.type.value == "conditional_discharge"]
-        assert len(cd) == 1
-        assert cd[0].conditional_discharge_years == 3
-        assert cd[0].record_statement_required is True
-
-    def test_unconditional_discharge(self, output):
-        """#12: Unconditional discharge, record statement required for felony."""
-        ud = [d for d in output.available_dispositions if d.type.value == "unconditional_discharge"]
-        assert len(ud) == 1
-        assert ud[0].record_statement_required is True
+    def test_no_alternatives_for_vfo(self, output):
+        """PL 60.05(4) mandates determinate for VFOs — no split/probation/CD/UD."""
+        alt_types = {d.type.value for d in output.available_dispositions[1:]}
+        assert alt_types == set(), f"VFO should have no alternatives, got: {alt_types}"
 
     def test_fine(self, output):
         """#13: Fine up to $5,000 or double gain."""
@@ -141,13 +110,30 @@ class TestPL12002WithExceptions:
         assert len(record) == 1
 
     def test_domestic_violence_exception(self, output):
-        """#5: DV alternative determinate per 60.12(2) — Class D: 1-2yr."""
+        """#5: DV alternatives per 60.12(2) — Class D: 1-2yr determinate, plus
+        definite ≤1yr and probation, emitted as three sibling ExceptionPaths."""
         dv = [e for e in output.exception_paths if e.type.value == "domestic_violence_indeterminate"]
-        assert len(dv) == 1
-        assert dv[0].resulting_disposition is not None
+        assert len(dv) == 3
+
+        by_type = {e.resulting_disposition.type for e in dv}
+        assert by_type == {
+            DispositionType.DETERMINATE,
+            DispositionType.DEFINITE,
+            DispositionType.PROBATION,
+        }
+
         # §120.02 is Class D VFO → 60.12(2)(c): 1-2yr determinate alternative
-        assert dv[0].resulting_disposition.term.min_value == 1
-        assert dv[0].resulting_disposition.term.max_value == 2
+        det = next(e for e in dv if e.resulting_disposition.type == DispositionType.DETERMINATE)
+        assert det.resulting_disposition.term.min_value == 1
+        assert det.resulting_disposition.term.max_value == 2
+
+        # Definite ≤1yr alternative
+        defi = next(e for e in dv if e.resulting_disposition.type == DispositionType.DEFINITE)
+        assert defi.resulting_disposition.term.max_value == 1
+
+        # Probation alternative
+        prob = next(e for e in dv if e.resulting_disposition.type == DispositionType.PROBATION)
+        assert "PL 65.00" in prob.resulting_disposition.statute_refs
 
     def test_dwi_exception(self, output):
         """#9: DWI split sentence variant appears."""
@@ -700,3 +686,115 @@ class TestVFOWithNonVFOPriorStatus:
         # 70.80(5)(c) Class E: 3-4yr for predicate violent sex offender
         assert det[0].term.min_value == 3
         assert det[0].term.max_value == 4
+
+
+class TestForHireEnhancement:
+    """PL 60.07 — for-hire vehicle enhancement: minimum term +3-5 years
+    when the victim was operating a for-hire vehicle and the offense is a
+    "specified offense" per 60.07(2)(a)."""
+
+    def test_120_06_completed_with_for_hire(self):
+        """120.06 (gang assault 2nd, Class C VFO) is in completedSections.
+        Base determinate 3.5-15yr → enhanced min 6.5-15yr (+3yr floor)."""
+        facts = CaseFacts(
+            section="120.06",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+            victim_is_for_hire_operator=True,
+        )
+        out = resolve("120.06", facts)
+        d = out.available_dispositions[0]
+        assert d.term.min_value == 6.5
+        assert d.term.max_value == 15.0
+        assert "PL 60.07" in d.statute_refs
+
+    def test_for_hire_exception_path_present(self):
+        """The judicial escape hatch ExceptionPath must appear."""
+        facts = CaseFacts(
+            section="120.06",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+            victim_is_for_hire_operator=True,
+        )
+        out = resolve("120.06", facts)
+        for_hire = [e for e in out.exception_paths if e.type.value == "for_hire_enhancement"]
+        assert len(for_hire) == 1
+        assert "PL 60.07" in for_hire[0].statute_refs
+
+    def test_120_05_not_eligible(self):
+        """120.05 (assault 2nd) is NOT in FOR_HIRE_LIST — no enhancement."""
+        facts = CaseFacts(
+            section="120.05",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+            victim_is_for_hire_operator=True,
+        )
+        out = resolve("120.05", facts)
+        d = out.available_dispositions[0]
+        assert d.term.min_value == 2.0  # standard Class D VFO, unchanged
+        assert "PL 60.07" not in d.statute_refs
+        for_hire = [e for e in out.exception_paths if e.type.value == "for_hire_enhancement"]
+        assert len(for_hire) == 0
+
+    def test_attempt_of_120_06_not_eligible(self):
+        """Attempt of 120.06 is NOT in attemptOfSections — no enhancement,
+        even though 120.06 completed IS in completedSections."""
+        facts = CaseFacts(
+            section="120.06",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+            is_attempt=True,
+            attempt_of_section="120.06",
+            victim_is_for_hire_operator=True,
+        )
+        out = resolve("120.06", facts)
+        d = out.available_dispositions[0]
+        assert "PL 60.07" not in d.statute_refs
+        for_hire = [e for e in out.exception_paths if e.type.value == "for_hire_enhancement"]
+        assert len(for_hire) == 0
+
+    def test_attempt_of_125_25_eligible(self):
+        """Attempt of 125.25 (attempted murder 2nd) IS in attemptOfSections.
+        Attempt of A-I → Class B VFO, base 5-25yr → enhanced min 8-25yr."""
+        facts = CaseFacts(
+            section="125.25",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+            is_attempt=True,
+            attempt_of_section="125.25",
+            victim_is_for_hire_operator=True,
+        )
+        out = resolve("125.25", facts)
+        d = out.available_dispositions[0]
+        assert d.term.min_value == 8.0  # 5 + 3
+        assert d.term.max_value == 25.0
+        assert "PL 60.07" in d.statute_refs
+
+    def test_stacks_with_hate_crime_and_terrorism(self):
+        """120.06 + hate crime + terrorism → Class A-I indeterminate 15-25yr.
+        For-hire enhancement adds +3yr to the min → 18-25yr."""
+        facts = CaseFacts(
+            section="120.06",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+            hate_crime_motivated=True,
+            terrorism_motivated=True,
+            victim_is_for_hire_operator=True,
+        )
+        out = resolve("120.06", facts)
+        assert out.classification == "ClassA_I_Felony"
+        d = out.available_dispositions[0]
+        assert d.term.min_value == 18.0  # 15 + 3
+        assert "PL 60.07" in d.statute_refs
+
+    def test_no_flag_no_enhancement(self):
+        """Without the for-hire flag, nothing happens even for an eligible offense."""
+        facts = CaseFacts(
+            section="120.06",
+            prior_record_status=PriorRecordStatus.FIRST_OFFENDER,
+            defendant_age_category=AgeCategory.ADULT,
+        )
+        out = resolve("120.06", facts)
+        d = out.available_dispositions[0]
+        assert d.term.min_value == 3.5  # standard, no enhancement
+        assert "PL 60.07" not in d.statute_refs

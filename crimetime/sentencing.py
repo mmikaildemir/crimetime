@@ -29,9 +29,11 @@ from .models import (
 )
 from .resolvers import (
     is_felony,
+    is_for_hire_eligible,
     is_hatecrime_eligible,
     is_misdemeanor,
     is_smf_eligible,
+    is_terrorism_eligible,
     is_violation,
     is_vfo,
     resolve_attempt_classification,
@@ -356,6 +358,60 @@ def _normalize_prior_status(
     return vfo, prior_status
 
 
+def _format_min_period_rule(row: dict) -> str | None:
+    """Format a human-readable minimum-period rule from structured data fields.
+
+    Handles both the new structured schema (minPeriodFloor / minPeriodCeiling)
+    and the legacy free-text minTermRule for backward compatibility.
+    """
+    floor = row.get("minPeriodFloor")
+    ceiling = row.get("minPeriodCeiling")
+    ref = row.get("minPeriodRef", "")
+
+    if floor is not None or ceiling is not None:
+        parts = []
+        if floor is not None:
+            if isinstance(floor, str):
+                parts.append(f"not less than {floor}")
+            else:
+                parts.append(f"not less than {floor} year{'s' if floor != 1 else ''}")
+        if ceiling is not None:
+            parts.append(f"not more than {ceiling}")
+        rule = ", and ".join(parts) if len(parts) > 1 else parts[0]
+        if ref:
+            rule += f" ({ref})"
+        return f"Minimum period: {rule}"
+
+    legacy = row.get("minTermRule")
+    if legacy:
+        return f"Minimum period: {legacy}"
+
+    return None
+
+
+def _format_min_period_short(row: dict) -> str:
+    """Compact min-period summary for the disposition label (no statute ref)."""
+    floor = row.get("minPeriodFloor")
+    ceiling = row.get("minPeriodCeiling")
+
+    if floor is not None or ceiling is not None:
+        parts = []
+        if floor is not None:
+            if isinstance(floor, str):
+                parts.append(f"{floor}")
+            else:
+                parts.append(f"{floor} yr" if floor == 1 else f"{floor} yrs")
+        if ceiling is not None:
+            parts.append(f"to {ceiling}")
+        return " ".join(parts) if parts else ""
+
+    legacy = row.get("minTermRule")
+    if legacy:
+        return legacy
+
+    return ""
+
+
 def _resolve_primary_felony_disposition(
     classification: str,
     section: str,
@@ -466,7 +522,8 @@ def _resolve_primary_felony_disposition(
             )
 
         max_years = row["maxTermYears"]
-        statute = "PL 70.00(3)" if status_key == "firstOffender" else "PL 70.06"
+        statute = "PL 70.00(2)-(3)" if status_key == "firstOffender" else "PL 70.06(2)-(4)"
+        min_period_str = _format_min_period_rule(row)
         if max_years == "life":
             min_period = row.get("minYears", [15, 25])
             disp = Disposition(
@@ -474,15 +531,18 @@ def _resolve_primary_felony_disposition(
                 label=f"Indeterminate sentence — {min_period[0]}–{min_period[1]} years to life",
                 statute_refs=[statute],
                 term=TermRange(min_value=min_period[0], max_value=999),
-                conditions=row.get("minTermRule"),
+                conditions=min_period_str,
             )
         else:
+            label = f"Indeterminate sentence — max {max_years[0]}–{max_years[1]} years"
+            if min_period_str:
+                label += f", min {_format_min_period_short(row)}"
             disp = Disposition(
                 type=DispositionType.INDETERMINATE,
-                label=f"Indeterminate sentence — {max_years[0]}–{max_years[1]} years max",
+                label=label,
                 statute_refs=[statute],
                 term=TermRange(min_value=max_years[0], max_value=max_years[1]),
-                conditions=row.get("minTermRule"),
+                conditions=min_period_str,
             )
         return disp, None
 
@@ -567,6 +627,16 @@ def _generate_felony_alternatives(
     fel = disp_table.get("felony", {})
     alternatives: list[Disposition] = []
 
+    # VFOs: PL 70.02(2)(a) mandates a determinate sentence for class B/C VFOs
+    # ("must be a determinate sentence of imprisonment"), and PL 60.05(3)/(4)
+    # route class B/C VFOs to 70.02. The 60.01 alternatives (split/probation/CD/UD/
+    # definite/intermittent) are not "a determinate sentence of imprisonment"
+    # within the meaning of 70.02(2)(a), so none apply. The only statutory
+    # carve-outs are 60.05(6) (second/persistent offender routing) and
+    # 70.02(4)(b) (armed-felony plea mitigation) — both handled as ExceptionPaths.
+    if is_vfo:
+        return alternatives
+
     # Class letter for gating
     cls_letter = _class_key(classification)
     is_class_de = cls_letter in ("ClassD", "ClassE")
@@ -599,9 +669,9 @@ def _generate_felony_alternatives(
             )
         )
 
-    # Split sentence (PL 60.01(2)(d))
+    # Split sentence (PL 60.01(2)(d)) — NOT for Class A felonies per PL 60.01(2)
     split = fel.get("splitSentence", {})
-    if split.get("eligible"):
+    if split.get("eligible") and not is_class_a:
         imprisonment_months = split["imprisonmentMaxMonths"]
         if case_facts.is_dwi:
             imprisonment_months = split.get("dwiImprisonmentMaxMonths", 12)
@@ -630,9 +700,9 @@ def _generate_felony_alternatives(
             )
         )
 
-    # Conditional Discharge (PL 65.05)
+    # Conditional Discharge (PL 65.05) — NOT for Class A felonies per PL 60.01(2)
     cd = fel.get("conditionalDischarge", {})
-    if cd.get("eligible"):
+    if cd.get("eligible") and not is_class_a:
         alternatives.append(
             Disposition(
                 type=DispositionType.CONDITIONAL_DISCHARGE,
@@ -644,9 +714,9 @@ def _generate_felony_alternatives(
             )
         )
 
-    # Unconditional Discharge (PL 65.20)
+    # Unconditional Discharge (PL 65.20) — NOT for Class A felonies per PL 60.01(3)
     ud = fel.get("unconditionalDischarge", {})
-    if ud.get("eligible"):
+    if ud.get("eligible") and not is_class_a:
         alternatives.append(
             Disposition(
                 type=DispositionType.UNCONDITIONAL_DISCHARGE,
@@ -949,7 +1019,7 @@ def _apply_terrorism_bump(
     """
     if not case_facts.terrorism_motivated:
         return classification, None, None, False
-    if not is_hatecrime_eligible(section):
+    if not is_terrorism_eligible(section):
         return classification, None, None, False
     if not is_felony(classification):
         return classification, None, None, False
@@ -964,6 +1034,53 @@ def _apply_terrorism_bump(
         return classification, None, "life_without_parole", True
 
     return classification, None, None, False
+
+
+def _apply_for_hire_enhancement(
+    dispositions: list[Disposition],
+    case_facts: CaseFacts,
+    section: str,
+) -> bool:
+    """Apply the for-hire vehicle enhancement (PL 60.07(1)) to the primary
+    disposition in-place. Called post-disposition.
+
+    PL 60.07(1): when the victim was operating a for-hire vehicle and the
+    offense is a "specified offense" per 60.07(2)(a), the minimum term of
+    an indeterminate sentence or minimum determinate sentence shall be
+    not less than 3 nor more than 5 years greater than the minimum term
+    otherwise required. The maximum term is unchanged.
+
+    This is a minimum-term floor adjustment, NOT a classification modifier.
+    It stacks with hate-crime/terrorism bumps because it operates on the
+    final post-modifier minimum.
+    """
+    if not case_facts.victim_is_for_hire_operator:
+        return False
+    if not is_for_hire_eligible(
+        section,
+        is_attempt=case_facts.is_attempt,
+        attempt_of_section=case_facts.attempt_of_section,
+    ):
+        return False
+    if not dispositions:
+        return False
+
+    primary = dispositions[0]
+    if not primary.term or primary.term.unit != TermUnit.YEARS:
+        return False
+
+    # Add 3 years to the minimum (the floor of the 3-5 year enhancement range).
+    # The court has discretion to add up to 5 years; we represent the enhanced
+    # floor (old_min + 3) as the new minimum. The max stays unchanged.
+    old_min = primary.term.min_value
+    primary.term = TermRange(
+        min_value=old_min + 3,
+        max_value=primary.term.max_value,
+        unit=primary.term.unit,
+    )
+    primary.label = f"{primary.label} (for-hire enhancement applied: min +3-5 yr per PL 60.07)"
+    primary.statute_refs = list(primary.statute_refs) + ["PL 60.07"]
+    return True
 
 
 def _apply_hatecrime_floors(
@@ -1004,16 +1121,16 @@ def _apply_hatecrime_floors(
             floor = floors.get("70.00", {})
             if "maxTermMin" in floor and primary.term:
                 primary.term = TermRange(
-                    min_value=primary.term.min_value,
-                    max_value=max(primary.term.max_value, floor["maxTermMin"]),
+                    min_value=max(primary.term.min_value, floor["maxTermMin"]),
+                    max_value=primary.term.max_value,
                     unit=primary.term.unit,
                 )
         elif not vfo and prior_status == PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06:
             floor = floors.get("70.06", {})
             if "maxTermMin" in floor and primary.term:
                 primary.term = TermRange(
-                    min_value=primary.term.min_value,
-                    max_value=max(primary.term.max_value, floor["maxTermMin"]),
+                    min_value=max(primary.term.min_value, floor["maxTermMin"]),
+                    max_value=primary.term.max_value,
                     unit=primary.term.unit,
                 )
         # 70.05 (juvenile offender): §485.10(3)(d) sets a 4-year max floor,
@@ -1255,6 +1372,10 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
                     max_value=max(primary.term.max_value, min_override[1]),
                     unit=primary.term.unit,
                 )
+
+    # Apply for-hire vehicle enhancement (PL 60.07) post-disposition —
+    # adds 3-5 years to the minimum term of the primary disposition.
+    for_hire_applied = _apply_for_hire_enhancement(dispositions, case_facts, section)
 
     # Exceptions
     exceptions = generate_all_exceptions(

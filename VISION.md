@@ -10,7 +10,7 @@ There is no single structured, queryable, auditable system that models this data
 
 Build a **normalized legal data model** and **admin console** that:
 
-1. Represents the full hierarchy: **Statute → Classification → Modifier → Offense → SentencingRule**
+commi1. Represents the full hierarchy: **Statute → Classification → Modifier → Offense → SentencingRule**
 2. Resolves the resulting classification when a modifier applies to an offense
 3. Returns the correct sentencing range (imprisonment, fine, probation, etc.) for any (offense, modifier) combination
 4. Tracks legal verification per row — every enhancement rule has a `verified_by` / `verified_date`

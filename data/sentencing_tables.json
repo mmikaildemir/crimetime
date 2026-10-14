@@ -143,40 +143,52 @@
       "ClassE": {
         "type": "indeterminate",
         "maxTermYears": [
-          1,
+          3,
           4
         ],
-        "minTermRule": "1yr to 1/3 of max",
+        "minPeriodFloor": 1,
+        "minPeriodCeiling": "max/3",
+        "minPeriodRef": "PL 70.00(3)(b)",
+        "maxTermRef": "PL 70.00(2)(e)",
         "altDefiniteMax1yr": true,
         "probationEligibleYears": 5
       },
       "ClassD": {
         "type": "indeterminate",
         "maxTermYears": [
-          1,
+          3,
           7
         ],
-        "minTermRule": "1yr to 1/3 of max",
+        "minPeriodFloor": 1,
+        "minPeriodCeiling": "max/3",
+        "minPeriodRef": "PL 70.00(3)(b)",
+        "maxTermRef": "PL 70.00(2)(d)",
         "altDefiniteMax1yr": true,
         "probationEligibleYears": 5
       },
       "ClassC": {
         "type": "indeterminate",
         "maxTermYears": [
-          1,
+          3,
           15
         ],
-        "minTermRule": "1yr to 1/3 of max",
+        "minPeriodFloor": 1,
+        "minPeriodCeiling": "max/3",
+        "minPeriodRef": "PL 70.00(3)(b)",
+        "maxTermRef": "PL 70.00(2)(c)",
         "altDefiniteMax1yr": true,
         "probationEligibleYears": 5
       },
       "ClassB": {
         "type": "indeterminate",
         "maxTermYears": [
-          1,
+          3,
           25
         ],
-        "minTermRule": "1yr to 1/3 of max",
+        "minPeriodFloor": 1,
+        "minPeriodCeiling": "max/3",
+        "minPeriodRef": "PL 70.00(3)(b)",
+        "maxTermRef": "PL 70.00(2)(b)",
         "altDefiniteMax1yr": false,
         "probationEligibleYears": 5
       },
@@ -200,7 +212,10 @@
           3,
           4
         ],
-        "minTermRule": "1/2 of max"
+        "minPeriodFloor": "max/2",
+        "minPeriodCeiling": null,
+        "minPeriodRef": "PL 70.06(4)(b)",
+        "maxTermRef": "PL 70.06(2)(e), 70.06(4)(a)"
       },
       "ClassD": {
         "type": "indeterminate",
@@ -208,7 +223,10 @@
           4,
           7
         ],
-        "minTermRule": "1/2 of max"
+        "minPeriodFloor": "max/2",
+        "minPeriodCeiling": null,
+        "minPeriodRef": "PL 70.06(4)(b)",
+        "maxTermRef": "PL 70.06(2)(d), 70.06(4)(a)"
       },
       "ClassC": {
         "type": "indeterminate",
@@ -216,7 +234,10 @@
           6,
           15
         ],
-        "minTermRule": "1/2 of max"
+        "minPeriodFloor": "max/2",
+        "minPeriodCeiling": null,
+        "minPeriodRef": "PL 70.06(4)(b)",
+        "maxTermRef": "PL 70.06(2)(c), 70.06(4)(a)"
       },
       "ClassB": {
         "type": "indeterminate",
@@ -224,7 +245,10 @@
           9,
           25
         ],
-        "minTermRule": "1/2 of max"
+        "minPeriodFloor": "max/2",
+        "minPeriodCeiling": null,
+        "minPeriodRef": "PL 70.06(4)(b)",
+        "maxTermRef": "PL 70.06(2)(b), 70.06(4)(a)"
       },
       "ClassA_II": {
         "type": "indeterminate",

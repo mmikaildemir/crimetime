@@ -135,6 +135,32 @@ def is_hatecrime_section(section: str) -> bool:
     return section in get_hatecrime_list().get("sections", [])
 
 
+# --- TERRORISM_LIST --------------------------------------------------------
+# PL 490.25(3) cross-references the 485.05(3) specified-offense list, so
+# TERRORISM_LIST.sections is intentionally identical to HATECRIME_LIST.sections
+# while those two statutory provisions remain coupled. Kept as a separate
+# list so the legislature can decouple them without silent breakage.
+
+
+def get_terrorism_list() -> dict[str, Any]:
+    return _load_lists()["lists"]["TERRORISM_LIST"]
+
+
+def is_terrorism_section(section: str) -> bool:
+    return section in get_terrorism_list().get("sections", [])
+
+
+# --- FOR_HIRE_LIST ---------------------------------------------------------
+# PL 60.07(2)(a) selectively lists completed offenses and attempts of
+# specific offenses. Unlike HATECRIME_LIST, this is NOT a flat section
+# list — eligibility depends on whether the conviction is for a completed
+# offense or an attempt, and the two lists differ.
+
+
+def get_for_hire_list() -> dict[str, Any]:
+    return _load_lists()["lists"]["FOR_HIRE_LIST"]
+
+
 # ---------------------------------------------------------------------------
 # Sentencing tables accessors
 # ---------------------------------------------------------------------------

@@ -146,6 +146,48 @@ def is_hatecrime_eligible(section: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Terrorism eligibility — PL 490.25(3) cross-refs 485.05(3)
+# ---------------------------------------------------------------------------
+
+
+def is_terrorism_eligible(section: str) -> bool:
+    """Terrorism-eligible if section in TERRORISM_LIST (not felony-gated).
+
+    Per PL 490.25(3), the term "specified offense" has the same meaning as in
+    PL 485.05(3), so TERRORISM_LIST.sections is intentionally identical to
+    HATECRIME_LIST.sections while those statutory provisions remain coupled.
+    Modeled as a separate resolver so the legislature can decouple them
+    without silent breakage.
+    """
+    return reference.is_terrorism_section(section)
+
+
+# ---------------------------------------------------------------------------
+# For-hire vehicle eligibility — PL 60.07(2)(a)
+# ---------------------------------------------------------------------------
+
+
+def is_for_hire_eligible(
+    section: str,
+    is_attempt: bool = False,
+    attempt_of_section: str | None = None,
+) -> bool:
+    """For-hire enhancement eligible if the conviction is a 60.07(2)(a)
+    "specified offense."
+
+    PL 60.07(2)(a) selectively lists completed offenses AND attempts of
+    specific offenses. The two lists differ — e.g., 120.06 completed is
+    listed but attempt of 120.06 is not; 125.25 completed is NOT listed but
+    attempt of 125.25 IS. This resolver checks the appropriate list based on
+    whether the conviction is for a completed offense or an attempt.
+    """
+    for_hire_list = reference.get_for_hire_list()
+    if is_attempt and attempt_of_section:
+        return attempt_of_section in for_hire_list.get("attemptOfSections", [])
+    return section in for_hire_list.get("completedSections", [])
+
+
+# ---------------------------------------------------------------------------
 # A6 — hasPredicateExposure
 # ---------------------------------------------------------------------------
 

@@ -66,6 +66,7 @@ class ExceptionType(str, Enum):
     DOMESTIC_VIOLENCE_INDETERMINATE = "domestic_violence_indeterminate"
     DWI_SPLIT_SENTENCE_VARIANT = "dwi_split_sentence_variant"
     RECORD_STATEMENT_REQUIRED = "record_statement_required"
+    FOR_HIRE_ENHANCEMENT = "for_hire_enhancement"
 
 
 class FinancialType(str, Enum):
@@ -249,6 +250,7 @@ class CaseFacts(BaseModel):
     hate_crime_motivated: bool = False
     sexually_motivated: bool = False
     terrorism_motivated: bool = False
+    victim_is_for_hire_operator: bool = False
 
     # Conditional classification triggers (offense-intrinsic)
     intended_underlying_offense_class: Optional[str] = Field(
@@ -271,7 +273,9 @@ class ModifierApplied(BaseModel):
     """Records a single modifier (enhancement) that was applied during sentencing.
 
     Modifiers are applied in order: SMF → hate crime → terrorism. Each modifier
-    sees the classification resulting from the previous one.
+    sees the classification resulting from the previous one. The for-hire
+    enhancement (PL 60.07) is a post-disposition minimum-term adjustment, not a
+    classification modifier, and is tracked separately.
     """
 
     modifier_type: str

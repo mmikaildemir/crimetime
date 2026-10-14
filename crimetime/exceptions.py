@@ -5,13 +5,14 @@ Covers outputs #3, #4, #5, #9 from the reference example:
   - Record statement requirement (when determinate not imposed)
   - Domestic violence indeterminate (PL 60.12) — class-specific determinate alternatives
   - DWI split sentence variant (PL 60.21)
+  - For-hire vehicle enhancement judicial escape hatch (PL 60.07(1))
 """
 
 from __future__ import annotations
 
 from . import reference
 from .models import Disposition, DispositionType, ExceptionPath, ExceptionType, TermRange, TermUnit
-from .resolvers import is_felony
+from .resolvers import is_felony, is_for_hire_eligible
 
 
 # Offenses excluded from the DV alternative per PL 60.12(1)
@@ -97,22 +98,27 @@ def generate_domestic_violence_exception(
     classification: str,
     section: str,
     domestic_violence_by_victim: bool,
-) -> ExceptionPath | None:
+) -> list[ExceptionPath]:
     """Generate the domestic-violence alternative sentence exception (PL 60.12).
 
     Per 60.12(1): excludes §125.25, §125.26, §125.27, Article 490, and
-    sex-offender-registration offenses. Per 60.12(2): court may impose a
-    class-specific determinate alternative (B 1-5, C 1-3.5, D 1-2, E 1-1.5),
-    a definite ≤1yr, or probation.
+    sex-offender-registration offenses. Per 60.12(2): court may impose any one
+    of three alternatives — a class-specific determinate term (B 1-5, C 1-3.5,
+    D 1-2, E 1-1.5), a definite sentence ≤1yr, or probation under PL 65.00.
+    Each alternative is emitted as a sibling ExceptionPath so downstream
+    consumers see all three as first-class structured dispositions.
     """
     if not domestic_violence_by_victim:
-        return None
+        return []
     if not is_felony(classification):
-        return None
+        return []
     if section in _DV_EXCLUDED_SECTIONS:
-        return None
+        return []
 
     exc = reference.get_exceptions_table()["domesticViolenceIndeterminate"]
+    statute_ref = exc["statuteRef"]
+    triggers = ["domestic_violence_by_victim"]
+    eligibility = "Excludes 125.25/26/27, Art 490, sex registration offenses per 60.12(1)."
 
     # Class-specific determinate range per 60.12(2)
     det_range = _DV_DETERMINATE_RANGES.get(classification)
@@ -121,22 +127,52 @@ def generate_domestic_violence_exception(
         if classification in ("ClassA_I_Felony", "ClassA_II_Felony"):
             det_range = [5, 15]
         else:
-            return None
+            return []
 
-    return ExceptionPath(
-        type=ExceptionType.DOMESTIC_VIOLENCE_INDETERMINATE,
-        label="Domestic violence exception — court may impose alternative determinate sentence",
-        description=exc["description"],
-        statute_refs=[exc["statuteRef"]],
-        triggering_factors=["domestic_violence_by_victim"],
-        resulting_disposition=Disposition(
-            type=DispositionType.DETERMINATE,
-            label=f"Determinate sentence of {det_range[0]}–{det_range[1]} years (DV alternative per 60.12(2))",
-            statute_refs=[exc["statuteRef"]],
-            term=TermRange(min_value=det_range[0], max_value=det_range[1], unit=TermUnit.YEARS),
-            conditions="Court may also impose definite ≤1yr or probation per 60.12(2). Excludes 125.25/26/27, Art 490, sex registration offenses per 60.12(1).",
+    # 60.12(2): three alternative dispositions of equal dignity.
+    return [
+        ExceptionPath(
+            type=ExceptionType.DOMESTIC_VIOLENCE_INDETERMINATE,
+            label="Domestic violence exception — alternative determinate sentence",
+            description=exc["description"],
+            statute_refs=[statute_ref],
+            triggering_factors=triggers,
+            resulting_disposition=Disposition(
+                type=DispositionType.DETERMINATE,
+                label=f"Determinate sentence of {det_range[0]}–{det_range[1]} years (DV alternative per 60.12(2))",
+                statute_refs=[statute_ref],
+                term=TermRange(min_value=det_range[0], max_value=det_range[1], unit=TermUnit.YEARS),
+                conditions=eligibility,
+            ),
         ),
-    )
+        ExceptionPath(
+            type=ExceptionType.DOMESTIC_VIOLENCE_INDETERMINATE,
+            label="Domestic violence exception — alternative definite sentence",
+            description=exc["description"],
+            statute_refs=[statute_ref],
+            triggering_factors=triggers,
+            resulting_disposition=Disposition(
+                type=DispositionType.DEFINITE,
+                label="Definite sentence of one year or less (DV alternative per 60.12(2))",
+                statute_refs=[statute_ref],
+                term=TermRange(min_value=0, max_value=1, unit=TermUnit.YEARS),
+                conditions=eligibility,
+            ),
+        ),
+        ExceptionPath(
+            type=ExceptionType.DOMESTIC_VIOLENCE_INDETERMINATE,
+            label="Domestic violence exception — alternative probation",
+            description=exc["description"],
+            statute_refs=[statute_ref],
+            triggering_factors=triggers,
+            resulting_disposition=Disposition(
+                type=DispositionType.PROBATION,
+                label="Probation under PL 65.00 (DV alternative per 60.12(2))",
+                statute_refs=[statute_ref, "PL 65.00"],
+                conditions=eligibility,
+            ),
+        ),
+    ]
 
 
 def generate_dwi_exception(
@@ -164,6 +200,47 @@ def generate_dwi_exception(
             statute_refs=["PL 60.21, 65.00"],
             conditions="Must run consecutively to any imprisonment; ignition interlock device required",
         ),
+    )
+
+
+def generate_for_hire_exception(
+    section: str,
+    victim_is_for_hire_operator: bool,
+    is_attempt: bool = False,
+    attempt_of_section: str | None = None,
+) -> ExceptionPath | None:
+    """Generate the for-hire vehicle enhancement judicial escape hatch (PL 60.07(1)).
+
+    PL 60.07(1) provides that the court MAY decline to impose the 3-5 year
+    minimum-term enhancement if it finds on the record that:
+      (a) the enhancement would be unduly harsh, AND
+      (b) not imposing it would be consistent with public safety, AND
+      (c) not imposing it would not deprecate the seriousness of the crime.
+    All three findings must be made on the record.
+
+    This exception path documents that the court has discretion to decline
+    the enhancement. The enhancement itself is applied post-disposition in
+    sentencing.py via _apply_for_hire_enhancement().
+    """
+    if not victim_is_for_hire_operator:
+        return None
+    if not is_for_hire_eligible(section, is_attempt, attempt_of_section):
+        return None
+
+    return ExceptionPath(
+        type=ExceptionType.FOR_HIRE_ENHANCEMENT,
+        label="For-hire vehicle enhancement — court may decline the 3-5yr minimum increase",
+        description=(
+            "Per PL 60.07(1): when the victim was operating a for-hire vehicle "
+            "and the offense is a specified offense per 60.07(2)(a), the minimum "
+            "term is increased by 3-5 years. The court may decline this enhancement "
+            "if it finds on the record that (a) it would be unduly harsh, AND "
+            "(b) not imposing it would be consistent with public safety, AND "
+            "(c) not imposing it would not deprecate the seriousness of the crime."
+        ),
+        statute_refs=["PL 60.07"],
+        triggering_factors=["victim_is_for_hire_operator"],
+        resulting_disposition=None,
     )
 
 
@@ -200,18 +277,27 @@ def generate_all_exceptions(
         if armed is not None and record_stmt is not None:
             exceptions.append(record_stmt)
 
-    # Domestic violence exception
+    # Domestic violence exception — 60.12(2) emits three sibling alternatives
     dv = generate_domestic_violence_exception(
         classification=classification,
         section=case_facts.section,
         domestic_violence_by_victim=case_facts.domestic_violence_by_victim,
     )
-    if dv is not None:
-        exceptions.append(dv)
+    exceptions.extend(dv)
 
     # DWI split sentence variant
     dwi = generate_dwi_exception(is_dwi=case_facts.is_dwi)
     if dwi is not None:
         exceptions.append(dwi)
+
+    # For-hire vehicle enhancement judicial escape hatch (PL 60.07(1))
+    for_hire = generate_for_hire_exception(
+        section=case_facts.section,
+        victim_is_for_hire_operator=case_facts.victim_is_for_hire_operator,
+        is_attempt=case_facts.is_attempt,
+        attempt_of_section=case_facts.attempt_of_section,
+    )
+    if for_hire is not None:
+        exceptions.append(for_hire)
 
     return exceptions
