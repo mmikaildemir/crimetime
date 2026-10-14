@@ -639,10 +639,8 @@ class TestNonVFOWithViolentPriorStatus:
 
 
 class TestVFOWithNonVFOPriorStatus:
-    """VFOs with non-VFO prior statuses (70.06, 70.10) must fall back to
-    70.02 first-offender determinate, since 70.06/70.10 prescribe
-    indeterminate sentences that conflict with 70.02(3)'s determinate
-    requirement for VFOs."""
+    """VFOs with only non-violent predicates are sentenced under 70.06(6)'s
+    determinate VFO ranges, not the indeterminate 70.06/70.10 tables."""
 
     def test_vfo_with_70_06_uses_determinate_table(self):
         """§120.10 (Class B VFO) + 70.06 → 70.06(6) determinate (8-25yr), not
@@ -659,8 +657,10 @@ class TestVFOWithNonVFOPriorStatus:
         assert det[0].term.min_value == 8
         assert det[0].term.max_value == 25
 
-    def test_vfo_with_70_10_falls_back_to_first_offender(self):
-        """§120.10 (Class B VFO) + 70.10 → 70.02 first offender (5-25yr)."""
+    def test_vfo_with_two_nonviolent_predicates_uses_70_06_6(self):
+        """§120.10 (Class B VFO) + two non-violent predicates → 70.06(6)
+        (8-25yr). Two predicates still make a second felony offender; 70.10
+        has no VFO-specific range, so 70.06(6) governs (not 70.02)."""
         facts = CaseFacts(
             section="120.10",
             prior_record_status=PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10,
@@ -669,7 +669,8 @@ class TestVFOWithNonVFOPriorStatus:
         out = resolve("120.10", facts)
         det = [d for d in out.available_dispositions if d.type.value == "determinate"]
         assert len(det) == 1
-        assert det[0].term.min_value == 5
+        assert det[0].term.min_value == 8
+        assert det[0].statute_refs == ["PL 70.06(6)"]
 
     def test_class_e_vfo_with_70_08_falls_back_to_first_offender(self):
         """§130.53 (Class E VFO, Article 130 sex offense) + 70.08 → routes

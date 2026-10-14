@@ -312,12 +312,9 @@ class ViolentFelonyTrack(Track):
             return OffenderStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08
         if prior.predicate_vfos == 1:
             return OffenderStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04
-        if prior.predicate_felonies >= 2:
-            # LEGACY-PARITY: the old status selector routed "70.10" + VFO to
-            # 70.02 (70.10 has no VFO-specific range).
-            return OffenderStatus.FIRST_OFFENDER
-        if prior.predicate_felonies == 1:
-            # PL 70.06(6): second felony offender convicted of a VFO.
+        if prior.predicate_felonies >= 1:
+            # PL 70.06(6): second felony offender (any non-violent predicate)
+            # convicted of a VFO.
             return OffenderStatus.SECOND_FELONY_OFFENDER_VFO_70_06_6
         return OffenderStatus.FIRST_OFFENDER
 
@@ -365,9 +362,9 @@ class NonViolentFelonyTrack(Track):
 
     def derive_status(self, ctx):
         prior = ctx.prior
-        if prior.predicate_vfos >= 2 or (prior.predicate_felonies >= 2 and prior.predicate_vfos == 0):
+        # PL 70.10: two or more predicate felonies, violent or not.
+        if prior.predicate_felonies >= 2:
             return OffenderStatus.PERSISTENT_FELONY_OFFENDER_70_10
-        # LEGACY-PARITY: (2 felonies, 1 VFO) lands here as 70.06, not 70.10.
         if prior.predicate_felonies >= 1:
             # PL 70.06 does not apply to Class A-I/A-II.
             if ctx.classification in _A_CLASSES:
