@@ -27,3 +27,10 @@ _site/
 
 # Office lock files
 ~$*
+
+# Private working files (kept locally, not published)
+crimetime_data.db
+crimetime_extraction.xlsx
+schema_approach/
+SESSION_NOTES.md
+data/staging/
