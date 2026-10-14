@@ -27,3 +27,13 @@
 - [ ] Add .env.example with required keys
 - [ ] Write README.md with setup + architecture docs
 - [ ] Add database migration/versioning strategy
+
+## Sentencing engine — gaps found during the track/pipeline restructure
+- [ ] PL 70.71(5): §220.77 (operating as a major trafficker, A-I) takes an indeterminate 70.00 sentence, but the drug track gives it the 70.71 determinate range
+- [ ] PL 110.05(9): attempting a class B misdemeanor is a violation; `resolve_attempt_classification` currently raises for these
+- [ ] Hate crime of a VFO: 485.10(1) deems it a VFO, but the `derive` effect re-checks VFO_LIST for the bumped class, so e.g. 120.05 (D VFO) + hate → C non-VFO. Legal review needed
+- [ ] Hate-crime 70.05 juvenile floor (485.10(3)(d)) is not applied: the juvenile disposition's term holds the minimum period, not the max-term range
+- [ ] Hate-crime floors on the sex-offense track (70.80) are UNVERIFIED (`floorByStatus._sexTrackNote`)
+- [ ] Juvenile offenders get the adult 60.01 alternatives (probation, CD, ...) for non-VFO felonies; check PL 60.10
+- [ ] 70.08 rows with `minYearsFixed` render the label "Indeterminate sentence — life to life"
+- [ ] Predicate facts are user-attested; computing the 70.06(1)(b) 10-year lookback (with incarceration tolling) from conviction dates is not modeled

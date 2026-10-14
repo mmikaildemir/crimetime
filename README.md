@@ -1,6 +1,7 @@
 # CrimeTime 2.0
 
-New York State sentencing decision engine (`crimetime/`).
+New York State sentencing decision engine (`crimetime/`). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+for how the pipeline, sentencing tracks and data tables fit together.
 
 ## Web demo (GitHub Pages)
 
