@@ -18,7 +18,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -27,13 +27,44 @@ from pydantic import BaseModel, Field
 
 
 class PriorRecordStatus(str, Enum):
-    """Defendant's prior-record status — the selector that routes to sentencing tables."""
+    """DEPRECATED input selector — use CaseFacts.prior_record (PriorRecord).
+
+    Still accepted on CaseFacts.prior_record_status and translated to
+    predicate-conviction facts; see LEGACY_STATUS_TO_PRIORS.
+    """
 
     FIRST_OFFENDER = "first_offender"
     SECOND_FELONY_OFFENDER_70_06 = "second_felony_offender_70_06"
     SECOND_VIOLENT_FELONY_OFFENDER_70_04 = "second_violent_felony_offender_70_04"
     PERSISTENT_FELONY_OFFENDER_70_10 = "persistent_felony_offender_70_10"
     PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08 = "persistent_violent_felony_offender_70_08"
+
+
+class OffenderStatus(str, Enum):
+    """The offender status the engine DERIVES for the current conviction.
+
+    This is a legal conclusion, not an input: it depends on both the
+    defendant's predicate convictions (PriorRecord) and the sentencing track
+    of the current offense (e.g. a drug felony with one violent predicate is
+    a second felony drug offender under PL 70.70(4), while a non-drug VFO
+    with the same record is a second violent felony offender under 70.04).
+    Values double as the table keys inside each track's sentencing table.
+    """
+
+    FIRST_OFFENDER = "first_offender"
+    # Non-violent felony track (70.00 / 70.06 / 70.10)
+    SECOND_FELONY_OFFENDER_70_06 = "second_felony_offender_70_06"
+    PERSISTENT_FELONY_OFFENDER_70_10 = "persistent_felony_offender_70_10"
+    # Violent felony track (70.02 / 70.06(6) / 70.04 / 70.08)
+    SECOND_FELONY_OFFENDER_VFO_70_06_6 = "second_felony_offender_vfo_70_06_6"
+    SECOND_VIOLENT_FELONY_OFFENDER_70_04 = "second_violent_felony_offender_70_04"
+    PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08 = "persistent_violent_felony_offender_70_08"
+    # Drug felony track (70.70 non-A / 70.71 A)
+    SECOND_FELONY_DRUG_OFFENDER = "second_felony_drug_offender"
+    SECOND_FELONY_DRUG_OFFENDER_PRIOR_VFO = "second_felony_drug_offender_prior_vfo"
+    # Sex offense felony track (70.80)
+    SEX_OFFENDER_PREDICATE_NONVIOLENT_70_80_5B = "sex_offender_predicate_nonviolent_70_80_5b"
+    SEX_OFFENDER_PREDICATE_VIOLENT_70_80_5C = "sex_offender_predicate_violent_70_80_5c"
 
 
 class AgeCategory(str, Enum):
@@ -218,6 +249,37 @@ class SentenceOverride(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class PriorRecord(BaseModel):
+    """Facts about the defendant's predicate felony convictions.
+
+    The user attests that each counted conviction qualifies as a predicate
+    under PL 70.06(1)(b) (sentence imposed before the current offense, within
+    the 10-year lookback extended by periods of incarceration). The engine
+    derives the offender status from these facts per sentencing track.
+    """
+
+    predicate_felonies: int = Field(default=0, ge=0, description="Qualifying prior felony convictions")
+    predicate_vfos: int = Field(
+        default=0, ge=0, description="How many of those were violent felony offenses per PL 70.02(1)"
+    )
+
+    @model_validator(mode="after")
+    def _vfos_are_a_subset(self) -> "PriorRecord":
+        if self.predicate_vfos > self.predicate_felonies:
+            raise ValueError("predicate_vfos cannot exceed predicate_felonies")
+        return self
+
+
+# How the deprecated PriorRecordStatus values translate to predicate facts.
+LEGACY_STATUS_TO_PRIORS: dict[PriorRecordStatus, tuple[int, int]] = {
+    PriorRecordStatus.FIRST_OFFENDER: (0, 0),
+    PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06: (1, 0),
+    PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04: (1, 1),
+    PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10: (2, 0),
+    PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08: (2, 2),
+}
+
+
 class CaseFacts(BaseModel):
     """The case facts the system prompts for before resolving sentencing.
 
@@ -235,8 +297,10 @@ class CaseFacts(BaseModel):
     is_conspiracy: bool = False
     conspiracy_of_section: Optional[str] = None
 
-    # Defendant prior-record status — the primary sentencing-table selector
-    prior_record_status: PriorRecordStatus = PriorRecordStatus.FIRST_OFFENDER
+    # Defendant's predicate convictions — the engine derives offender status
+    prior_record: PriorRecord = Field(default_factory=PriorRecord)
+    # DEPRECATED: legacy status input, translated into prior_record.
+    prior_record_status: Optional[PriorRecordStatus] = Field(default=None, exclude=True)
 
     # Exception triggers
     plea_from_armed_felony_indictment: bool = False
@@ -262,6 +326,13 @@ class CaseFacts(BaseModel):
 
     # Age
     defendant_age_category: AgeCategory = AgeCategory.ADULT
+
+    @model_validator(mode="after")
+    def _translate_legacy_prior_status(self) -> "CaseFacts":
+        if self.prior_record_status is not None and "prior_record" not in self.model_fields_set:
+            felonies, vfos = LEGACY_STATUS_TO_PRIORS[self.prior_record_status]
+            self.prior_record = PriorRecord(predicate_felonies=felonies, predicate_vfos=vfos)
+        return self
 
 
 # ---------------------------------------------------------------------------

@@ -22,6 +22,7 @@ from .models import (
     DispositionType,
     ModifierApplied,
     PostReleaseSupervision,
+    PriorRecord,
     PriorRecordStatus,
     SentencingOutput,
     TermRange,
@@ -71,6 +72,19 @@ _CLASS_KEY_MAP = {
     "ClassD_Violent_Felony": "ClassD",
     "ClassE_Violent_Felony": "ClassE",
 }
+
+
+def _legacy_status(prior: PriorRecord) -> PriorRecordStatus:
+    """Temporary: collapse predicate facts to the legacy status selector."""
+    if prior.predicate_vfos >= 2:
+        return PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08
+    if prior.predicate_vfos == 1:
+        return PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04
+    if prior.predicate_felonies >= 2:
+        return PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10
+    if prior.predicate_felonies == 1:
+        return PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06
+    return PriorRecordStatus.FIRST_OFFENDER
 
 
 def _class_key(classification: str) -> str:
@@ -1264,7 +1278,7 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
         and _is_drug_offense(offense)
     ):
         primary, prs = _resolve_drug_felony_disposition(
-            effective_classification, section, case_facts.prior_record_status
+            effective_classification, section, _legacy_status(case_facts.prior_record)
         )
         if prs:
             primary.prs = prs
@@ -1280,7 +1294,7 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
         and effective_classification not in ("ClassA_I_Felony", "ClassA_II_Felony")
     ):
         primary, prs = _resolve_sex_offense_felony_disposition(
-            effective_classification, section, case_facts.prior_record_status
+            effective_classification, section, _legacy_status(case_facts.prior_record)
         )
         if prs:
             primary.prs = prs
@@ -1290,7 +1304,7 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
         )
     elif is_felony(effective_classification):
         primary, prs = _resolve_primary_felony_disposition(
-            effective_classification, section, vfo, case_facts.prior_record_status
+            effective_classification, section, vfo, _legacy_status(case_facts.prior_record)
         )
         if prs:
             primary.prs = prs
@@ -1319,7 +1333,7 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
     for mod in modifiers_applied:
         if mod.modifier_type == "hate_crime" and mod.branch in ("ClassB", "ClassA_I"):
             _apply_hatecrime_floors(
-                dispositions, vfo, case_facts.prior_record_status, mod.branch
+                dispositions, vfo, _legacy_status(case_facts.prior_record), mod.branch
             )
 
     # Terrorism A-I → life without parole (§490.25(2)(d)) — overrides all
