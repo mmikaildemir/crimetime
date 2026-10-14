@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 <link rel="stylesheet" href="styles.css?v=__BUILD__" />
 </head>
-<body>
+<body data-step="pick">
 
 <div class="test-site-banner" role="alert">
   <i class="fa-solid fa-triangle-exclamation"></i>
@@ -56,10 +56,10 @@
 </div>
 
 <main class="layout" id="calculator">
-  <!-- LEFT: offense picker -->
+  <!-- STEP 1: offense picker -->
   <section class="panel panel-left">
     <div class="panel-heading">
-      <h2><i class="fa-solid fa-book"></i> Offense</h2>
+      <h2><i class="fa-solid fa-book"></i> Find an offense</h2>
       <span class="count muted small" id="offenseCount"></span>
     </div>
     <div class="search-wrap">
@@ -69,11 +69,21 @@
     <div class="offense-list" id="offenseList"><div class="muted pad">Loading offenses…</div></div>
   </section>
 
+  <!-- STEP 2: the chosen offense (filled by app.js renderOffenseBar) -->
+  <section class="offense-bar" id="offenseBar" aria-label="Chosen offense">
+    <button type="button" class="btn btn-default btn-back" id="changeOffense"><i class="fa-solid fa-arrow-left"></i> Change offense</button>
+    <div class="ob-main">
+      <div class="ob-meta" id="obMeta"></div>
+      <h2 class="ob-name" id="obName" tabindex="-1"></h2>
+      <span id="offenseBadge" class="badge-row"></span>
+      <div id="obElements"></div>
+    </div>
+  </section>
+
   <!-- CENTER: case facts -->
   <section class="panel panel-center">
     <div class="panel-heading">
       <h2><i class="fa-solid fa-file-pen"></i> Case Facts</h2>
-      <span id="offenseBadge" class="badge-row"></span>
     </div>
     <div id="caseFacts" class="panel-body case-facts">
       <div class="empty-state">

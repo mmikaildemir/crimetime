@@ -71,8 +71,8 @@ async function loadOffenses() {
     state.bySection = new Map(state.offenses.map(o => [o.section, o]));
     $('#offenseCount').textContent = `${state.offenses.length} offenses`;
     renderOffenseList($('#search').value);
-    const fromHash = decodeURIComponent(location.hash.replace(/^#s=/, ''));
-    if (location.hash.startsWith('#s=') && state.bySection.has(fromHash)) selectOffense(fromHash, { scroll: false });
+    const fromHash = sectionFromHash();
+    if (fromHash) selectOffense(fromHash, { scroll: false, push: false });
   } catch (e) {
     list.innerHTML = `<div class="alert alert-danger">Failed to load offenses: ${escapeHtml(e.message)}</div>`;
   }
@@ -117,27 +117,80 @@ function clsKind(c) {
 }
 
 // ---------------------------------------------------------------------------
-// Select offense -> render case facts form
+// Two steps: "pick" (offense finder) and "facts" (case facts + result).
+// The address hash (#s=<section>) mirrors the step, so Back/Forward work.
 // ---------------------------------------------------------------------------
-function selectOffense(section, { scroll = true } = {}) {
+function showStep(step) {
+  document.body.dataset.step = step;
+}
+
+function sectionFromHash() {
+  if (!location.hash.startsWith('#s=')) return null;
+  const s = decodeURIComponent(location.hash.slice(3));
+  return state.bySection.has(s) ? s : null;
+}
+
+function scrollToCalculator() {
+  const top = $('#calculator').getBoundingClientRect().top;
+  if (top < 0) $('#calculator').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function selectOffense(section, { scroll = true, push = true } = {}) {
   const d = state.bySection.get(section);
   if (!d) return;
+  const url = '#s=' + encodeURIComponent(section);
+  if (push && location.hash !== url) history.pushState({ fromPicker: true }, '', url);
+  else history.replaceState(history.state, '', url);
+
+  // Re-opening the offense already on screen (Back then Forward, or picking it
+  // again) keeps the case facts and result the user entered.
+  const same = section === state.selectedSection && state.offenseDetail;
   state.selectedSection = section;
   state.offenseDetail = d;
-  history.replaceState(null, '', '#s=' + encodeURIComponent(section));
-  renderOffenseList($('#search').value);
-  const list = $('#offenseList'), active = list.querySelector('.offense-item.active');
-  if (active) list.scrollTop = active.offsetTop - list.offsetTop - list.clientHeight / 3;
-  renderBadges(d);
-  renderCaseFacts(d);
-  updateResolveButton();
-  if (!state.lastResult || state.lastResult.section !== section) {
+  if (!same) {
+    renderOffenseBar(d);
+    renderCaseFacts(d);
     state.lastResult = null;
     $('#result').innerHTML = emptyResult();
   }
-  if (scroll && window.matchMedia('(max-width: 900px)').matches) {
-    document.querySelector('.panel-center').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  updateResolveButton();
+  showStep('facts');
+  if (scroll) scrollToCalculator();
+  $('#obName').focus({ preventScroll: true });
+}
+
+function showPicker() {
+  showStep('pick');
+  renderOffenseList($('#search').value);
+  const list = $('#offenseList'), active = list.querySelector('.offense-item.active');
+  if (active) list.scrollTop = active.offsetTop - list.offsetTop - list.clientHeight / 3;
+  scrollToCalculator();
+  $('#search').focus({ preventScroll: true });
+}
+
+function changeOffense() {
+  // Came here from the list: go Back so the history stays tidy.
+  if (history.state?.fromPicker) {
+    history.back();
+    return;
   }
+  history.pushState(null, '', location.pathname + location.search);
+  showPicker();
+}
+
+window.addEventListener('popstate', () => {
+  const s = sectionFromHash();
+  if (s) selectOffense(s, { push: false });
+  else showPicker();
+});
+
+function renderOffenseBar(d) {
+  $('#obMeta').textContent = `PL §${d.section} · Article ${d.article} · ${prettyCls(d.classification)}`;
+  $('#obName').textContent = d.name;
+  $('#obElements').innerHTML = d.elements
+    ? `<details class="elements"><summary>Elements</summary><p>${escapeHtml(d.elements)}</p></details>`
+    : '';
+  renderBadges(d);
 }
 
 function renderBadges(detail) {
@@ -162,15 +215,6 @@ function renderCaseFacts(d) {
   const wrap = $('#caseFacts');
   wrap.innerHTML = '';
   const e = d.eligibility;
-
-  // Offense summary
-  const head = el('div', 'offense-summary');
-  head.innerHTML = `
-    <div class="os-sec">PL §${escapeHtml(d.section)} · Article ${d.article}</div>
-    <div class="os-name">${escapeHtml(d.name)}</div>
-    <div class="os-cls">${escapeHtml(prettyCls(d.classification))}</div>
-    ${d.elements ? `<details class="elements"><summary>Elements</summary><p>${escapeHtml(d.elements)}</p></details>` : ''}`;
-  wrap.appendChild(head);
 
   // Prior record (felonies only)
   if (e.is_felony) {
@@ -391,7 +435,11 @@ function renderResult(out) {
   head.appendChild(metric('Final classification', prettyCls(out.classification), true));
   head.appendChild(metric('Base classification', out.base_classification ? prettyCls(out.base_classification) : 'No modifier'));
   head.appendChild(metric('Violent felony', out.is_vfo ? 'Yes' : 'No'));
-  if (out.offender_status_label) head.appendChild(metric('Offender status', out.offender_status_label));
+  if (out.offender_status_label) {
+    const status = metric('Offender status', out.offender_status_label);
+    status.classList.add('wide');
+    head.appendChild(status);
+  }
   head.appendChild(metric('Dispositions', out.available_dispositions.length));
   wrap.appendChild(head);
 
@@ -458,7 +506,8 @@ function sectionTitle(t) {
 }
 
 function humanize(s) {
-  return String(s ?? '').replace(/_/g, ' ');
+  const text = String(s ?? '').replace(/_/g, ' ');
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function refs(list, prefix = '') {
@@ -644,6 +693,7 @@ function clearPage() {
     view: 'structured',
   });
   history.replaceState(null, '', location.pathname + location.search);
+  showStep('pick');
   $('#search').value = '';
   renderOffenseList('');
   $('#offenseList').scrollTop = 0;
@@ -657,6 +707,7 @@ function clearPage() {
 }
 
 $('#clearBtn').addEventListener('click', clearPage);
+$('#changeOffense').addEventListener('click', changeOffense);
 
 $('#result').innerHTML = emptyResult();
 loadOffenses();
