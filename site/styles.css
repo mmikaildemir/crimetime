@@ -469,11 +469,16 @@ td.amount, th.amount { text-align: right; white-space: nowrap; font-weight: 700;
 
 /* Tester feedback button */
 .feedback-fab {
-  position: fixed; right: 16px; bottom: 16px; z-index: 999;
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 16px; border: 0; border-radius: 999px;
-  background: #b00020; color: #fff; font: 600 14px/1 inherit; font-family: inherit;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, .25); cursor: pointer;
+  position: fixed; right: 20px; bottom: 20px; z-index: 999;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 16px 28px; border: 0; border-radius: 999px;
+  background: #b00020; color: #fff; font-family: inherit; font-size: 18px; font-weight: 700; line-height: 1;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .3); cursor: pointer;
+}
+.feedback-fab i { font-size: 22px; }
+@media (max-width: 600px) {
+  .feedback-fab { right: 12px; bottom: 12px; padding: 13px 20px; font-size: 16px; }
+  .feedback-fab i { font-size: 18px; }
 }
 .feedback-fab:hover { background: #8c0019; }
 .feedback-fab:focus-visible { outline: 3px solid #ffd54f; outline-offset: 2px; }
