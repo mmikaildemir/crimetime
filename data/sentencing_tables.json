@@ -77,13 +77,14 @@
         "statute": "PL 70.70(2)",
         "sentenceType": "determinate",
         "prsRef": "PL 70.45(2)",
+        "_prsNote": "PRS per 70.45(2): 70.70(2) B/C 1-2 (b), D/E 1 (a); 70.70(3)/(4) B/C 1.5-3 (d), D/E 1-2 (c); class A (70.71) the 5-year default. Verified 2026-10-14.",
         "rows": {
           "ClassB": {"type": "determinate", "termYears": [1, 9], "prsYears": [1, 2], "wholeOrHalfYears": true},
           "ClassC": {"type": "determinate", "termYears": [1, 5.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
-          "ClassD": {"type": "determinate", "termYears": [1, 2.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
-          "ClassE": {"type": "determinate", "termYears": [1, 1.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
-          "ClassA_I": {"type": "determinate", "termYears": [8, 20], "prsYears": [2.5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(2)"},
-          "ClassA_II": {"type": "determinate", "termYears": [3, 10], "prsYears": [2.5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(2)"}
+          "ClassD": {"type": "determinate", "termYears": [1, 2.5], "prsYears": [1, 1], "wholeOrHalfYears": true},
+          "ClassE": {"type": "determinate", "termYears": [1, 1.5], "prsYears": [1, 1], "wholeOrHalfYears": true},
+          "ClassA_I": {"type": "determinate", "termYears": [8, 20], "prsYears": [5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(2)"},
+          "ClassA_II": {"type": "determinate", "termYears": [3, 10], "prsYears": [5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(2)"}
         }
       },
       "second_felony_drug_offender": {
@@ -91,13 +92,14 @@
         "statute": "PL 70.70(3)",
         "sentenceType": "determinate",
         "prsRef": "PL 70.45(2)",
+        "_prsNote": "PRS per 70.45(2): 70.70(2) B/C 1-2 (b), D/E 1 (a); 70.70(3)/(4) B/C 1.5-3 (d), D/E 1-2 (c); class A (70.71) the 5-year default. Verified 2026-10-14.",
         "rows": {
           "ClassB": {"type": "determinate", "termYears": [2, 12], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
           "ClassC": {"type": "determinate", "termYears": [1.5, 8], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
-          "ClassD": {"type": "determinate", "termYears": [1.5, 4], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
-          "ClassE": {"type": "determinate", "termYears": [1.5, 2], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
-          "ClassA_I": {"type": "determinate", "termYears": [12, 24], "prsYears": [2.5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(3)"},
-          "ClassA_II": {"type": "determinate", "termYears": [6, 14], "prsYears": [2.5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(3)"}
+          "ClassD": {"type": "determinate", "termYears": [1.5, 4], "prsYears": [1, 2], "wholeOrHalfYears": true},
+          "ClassE": {"type": "determinate", "termYears": [1.5, 2], "prsYears": [1, 2], "wholeOrHalfYears": true},
+          "ClassA_I": {"type": "determinate", "termYears": [12, 24], "prsYears": [5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(3)"},
+          "ClassA_II": {"type": "determinate", "termYears": [6, 14], "prsYears": [5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(3)"}
         }
       },
       "second_felony_drug_offender_prior_vfo": {
