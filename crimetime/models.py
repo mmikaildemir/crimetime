@@ -52,6 +52,8 @@ class OffenderStatus(str, Enum):
     """
 
     FIRST_OFFENDER = "first_offender"
+    # Tracks where prior felonies don't change the range (juvenile, misdemeanor, violation)
+    NOT_APPLICABLE = "not_applicable"
     # Non-violent felony track (70.00 / 70.06 / 70.10)
     SECOND_FELONY_OFFENDER_70_06 = "second_felony_offender_70_06"
     PERSISTENT_FELONY_OFFENDER_70_10 = "persistent_felony_offender_70_10"
@@ -364,6 +366,16 @@ class ModifierApplied(BaseModel):
     """Classification after this modifier was applied."""
 
 
+class TraceStep(BaseModel):
+    """One decision the engine made, in pipeline order."""
+
+    stage: str
+    """classify | modifier | track | offender_status | adjustment"""
+
+    detail: str
+    statute_refs: list[str] = Field(default_factory=list)
+
+
 # ---------------------------------------------------------------------------
 # Output model
 # ---------------------------------------------------------------------------
@@ -397,3 +409,12 @@ class SentencingOutput(BaseModel):
 
     base_classification: Optional[str] = None
     modifiers_applied: list[ModifierApplied] = Field(default_factory=list)
+
+    sentencing_track: Optional[str] = None
+    """Which Article 70 scheme governed (see crimetime/tracks.py)."""
+
+    offender_status: Optional[OffenderStatus] = None
+    """Status derived from prior_record on that track."""
+
+    offender_status_label: Optional[str] = None
+    trace: list[TraceStep] = Field(default_factory=list)

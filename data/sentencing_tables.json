@@ -71,48 +71,78 @@
   },
   "drugFelony": {
     "_ref": "PL 70.70 (non-A) / 70.71 (A) — felony drug offender sentencing. Applies to Article 220 and 222 felonies. VFO drug offenses still sentenced per 70.02/70.04/70.08 per 70.70(4).",
-    "firstFelonyDrugOffender_70_70_2": {
-      "ClassB": {"type": "determinate", "termYears": [1, 9], "prsYears": [1, 2], "wholeOrHalfYears": true},
-      "ClassC": {"type": "determinate", "termYears": [1, 5.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
-      "ClassD": {"type": "determinate", "termYears": [1, 2.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
-      "ClassE": {"type": "determinate", "termYears": [1, 1.5], "prsYears": [1, 2], "wholeOrHalfYears": true}
-    },
-    "secondFelonyDrugOffender_70_70_3": {
-      "ClassB": {"type": "determinate", "termYears": [2, 12], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
-      "ClassC": {"type": "determinate", "termYears": [1.5, 8], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
-      "ClassD": {"type": "determinate", "termYears": [1.5, 4], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
-      "ClassE": {"type": "determinate", "termYears": [1.5, 2], "prsYears": [1.5, 3], "wholeOrHalfYears": true}
-    },
-    "firstFelonyDrugOffender_A_70_71_2": {
-      "ClassA_I": {"type": "determinate", "termYears": [8, 20], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
-      "ClassA_II": {"type": "determinate", "termYears": [3, 10], "prsYears": [2.5, 5], "wholeOrHalfYears": true}
-    },
-    "secondFelonyDrugOffender_A_70_71_3": {
-      "ClassA_I": {"type": "determinate", "termYears": [12, 24], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
-      "ClassA_II": {"type": "determinate", "termYears": [6, 14], "prsYears": [2.5, 5], "wholeOrHalfYears": true}
+    "statuses": {
+      "first_offender": {
+        "label": "First felony drug offender — PL 70.70 / 70.71",
+        "statute": "PL 70.70(2)",
+        "sentenceType": "determinate",
+        "prsRef": "PL 70.45(2)",
+        "rows": {
+          "ClassB": {"type": "determinate", "termYears": [1, 9], "prsYears": [1, 2], "wholeOrHalfYears": true},
+          "ClassC": {"type": "determinate", "termYears": [1, 5.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
+          "ClassD": {"type": "determinate", "termYears": [1, 2.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
+          "ClassE": {"type": "determinate", "termYears": [1, 1.5], "prsYears": [1, 2], "wholeOrHalfYears": true},
+          "ClassA_I": {"type": "determinate", "termYears": [8, 20], "prsYears": [2.5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(2)"},
+          "ClassA_II": {"type": "determinate", "termYears": [3, 10], "prsYears": [2.5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(2)"}
+        }
+      },
+      "second_felony_drug_offender": {
+        "label": "Second felony drug offender — PL 70.70(3) / 70.71(3)",
+        "statute": "PL 70.70(3)",
+        "sentenceType": "determinate",
+        "prsRef": "PL 70.45(2)",
+        "rows": {
+          "ClassB": {"type": "determinate", "termYears": [2, 12], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
+          "ClassC": {"type": "determinate", "termYears": [1.5, 8], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
+          "ClassD": {"type": "determinate", "termYears": [1.5, 4], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
+          "ClassE": {"type": "determinate", "termYears": [1.5, 2], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
+          "ClassA_I": {"type": "determinate", "termYears": [12, 24], "prsYears": [2.5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(3)"},
+          "ClassA_II": {"type": "determinate", "termYears": [6, 14], "prsYears": [2.5, 5], "wholeOrHalfYears": true, "statute": "PL 70.71(3)"}
+        }
+      }
     }
   },
   "sexOffenseFelony": {
     "_ref": "PL 70.80 — felony sex offense sentencing. Applies to Article 130 felonies, 230.05/06/11/12/13, 255.26/27, and sexually motivated felonies. All get determinate sentences with sex-offense-specific PRS per 70.45(2-a).",
-    "firstOffender_70_80_4": {
-      "ClassB": {"type": "determinate", "termYears": [5, 25], "prsYears": [5, 20], "wholeOrHalfYears": true},
-      "ClassC": {"type": "determinate", "termYears": [3.5, 15], "prsYears": [5, 15], "wholeOrHalfYears": true},
-      "ClassD": {"type": "determinate", "termYears": [2, 7], "prsYears": [3, 10], "wholeOrHalfYears": true},
-      "ClassE": {"type": "determinate", "termYears": [1.5, 4], "prsYears": [3, 10], "wholeOrHalfYears": true}
-    },
-    "predicateNonViolent_70_80_5b": {
-      "_ref": "PL 70.80(5)(b) — predicate felony sex offender, non-violent predicate",
-      "ClassB": {"type": "determinate", "termYears": [8, 25], "prsYears": [5, 20], "wholeOrHalfYears": true},
-      "ClassC": {"type": "determinate", "termYears": [5, 15], "prsYears": [5, 15], "wholeOrHalfYears": true},
-      "ClassD": {"type": "determinate", "termYears": [3, 7], "prsYears": [3, 10], "wholeOrHalfYears": true},
-      "ClassE": {"type": "determinate", "termYears": [2, 4], "prsYears": [3, 10], "wholeOrHalfYears": true}
-    },
-    "predicateViolent_70_80_5c": {
-      "_ref": "PL 70.80(5)(c) — predicate felony sex offender, violent predicate",
-      "ClassB": {"type": "determinate", "termYears": [9, 25], "prsYears": [5, 20], "wholeOrHalfYears": true},
-      "ClassC": {"type": "determinate", "termYears": [6.5, 15], "prsYears": [5, 15], "wholeOrHalfYears": true},
-      "ClassD": {"type": "determinate", "termYears": [4, 7], "prsYears": [3, 10], "wholeOrHalfYears": true},
-      "ClassE": {"type": "determinate", "termYears": [3, 4], "prsYears": [3, 10], "wholeOrHalfYears": true}
+    "statuses": {
+      "first_offender": {
+        "label": "First felony sex offender — PL 70.80(4)",
+        "statute": "PL 70.80(4)",
+        "sentenceType": "determinate",
+        "prsRef": "PL 70.45(2-a)",
+        "rows": {
+          "ClassB": {"type": "determinate", "termYears": [5, 25], "prsYears": [5, 20], "wholeOrHalfYears": true},
+          "ClassC": {"type": "determinate", "termYears": [3.5, 15], "prsYears": [5, 15], "wholeOrHalfYears": true},
+          "ClassD": {"type": "determinate", "termYears": [2, 7], "prsYears": [3, 10], "wholeOrHalfYears": true},
+          "ClassE": {"type": "determinate", "termYears": [1.5, 4], "prsYears": [3, 10], "wholeOrHalfYears": true}
+        }
+      },
+      "sex_offender_predicate_nonviolent_70_80_5b": {
+        "label": "Predicate felony sex offender, non-violent predicate — PL 70.80(5)(b)",
+        "statute": "PL 70.80(5)(b)",
+        "sentenceType": "determinate",
+        "prsRef": "PL 70.45(2-a)",
+        "_ref": "PL 70.80(5)(b) — predicate felony sex offender, non-violent predicate",
+        "rows": {
+          "ClassB": {"type": "determinate", "termYears": [8, 25], "prsYears": [5, 20], "wholeOrHalfYears": true},
+          "ClassC": {"type": "determinate", "termYears": [5, 15], "prsYears": [5, 15], "wholeOrHalfYears": true},
+          "ClassD": {"type": "determinate", "termYears": [3, 7], "prsYears": [3, 10], "wholeOrHalfYears": true},
+          "ClassE": {"type": "determinate", "termYears": [2, 4], "prsYears": [3, 10], "wholeOrHalfYears": true}
+        }
+      },
+      "sex_offender_predicate_violent_70_80_5c": {
+        "label": "Predicate felony sex offender, violent predicate — PL 70.80(5)(c)",
+        "statute": "PL 70.80(5)(c)",
+        "sentenceType": "determinate",
+        "prsRef": "PL 70.45(2-a)",
+        "_ref": "PL 70.80(5)(c) — predicate felony sex offender, violent predicate",
+        "rows": {
+          "ClassB": {"type": "determinate", "termYears": [9, 25], "prsYears": [5, 20], "wholeOrHalfYears": true},
+          "ClassC": {"type": "determinate", "termYears": [6.5, 15], "prsYears": [5, 15], "wholeOrHalfYears": true},
+          "ClassD": {"type": "determinate", "termYears": [4, 7], "prsYears": [3, 10], "wholeOrHalfYears": true},
+          "ClassE": {"type": "determinate", "termYears": [3, 4], "prsYears": [3, 10], "wholeOrHalfYears": true}
+        }
+      }
     }
   },
   "violation": {
@@ -139,134 +169,121 @@
     }
   },
   "nonViolentFelony": {
-    "firstOffender": {
-      "ClassE": {
-        "type": "indeterminate",
-        "maxTermYears": [
-          3,
-          4
-        ],
-        "minPeriodFloor": 1,
-        "minPeriodCeiling": "max/3",
-        "minPeriodRef": "PL 70.00(3)(b)",
-        "maxTermRef": "PL 70.00(2)(e)",
-        "altDefiniteMax1yr": true,
-        "probationEligibleYears": 5
+    "_ref": "Non-violent felonies (isVFO=false): indeterminate sentences per PL 70.00 / 70.06 / 70.10.",
+    "statuses": {
+      "first_offender": {
+        "label": "First felony offender — PL 70.00",
+        "statute": "PL 70.00(2)-(3)",
+        "sentenceType": "indeterminate",
+        "rows": {
+          "ClassE": {
+            "type": "indeterminate",
+            "maxTermYears": [3, 4],
+            "minPeriodFloor": 1,
+            "minPeriodCeiling": "max/3",
+            "minPeriodRef": "PL 70.00(3)(b)",
+            "maxTermRef": "PL 70.00(2)(e)",
+            "altDefiniteMax1yr": true,
+            "probationEligibleYears": 5
+          },
+          "ClassD": {
+            "type": "indeterminate",
+            "maxTermYears": [3, 7],
+            "minPeriodFloor": 1,
+            "minPeriodCeiling": "max/3",
+            "minPeriodRef": "PL 70.00(3)(b)",
+            "maxTermRef": "PL 70.00(2)(d)",
+            "altDefiniteMax1yr": true,
+            "probationEligibleYears": 5
+          },
+          "ClassC": {
+            "type": "indeterminate",
+            "maxTermYears": [3, 15],
+            "minPeriodFloor": 1,
+            "minPeriodCeiling": "max/3",
+            "minPeriodRef": "PL 70.00(3)(b)",
+            "maxTermRef": "PL 70.00(2)(c)",
+            "altDefiniteMax1yr": true,
+            "probationEligibleYears": 5
+          },
+          "ClassB": {
+            "type": "indeterminate",
+            "maxTermYears": [3, 25],
+            "minPeriodFloor": 1,
+            "minPeriodCeiling": "max/3",
+            "minPeriodRef": "PL 70.00(3)(b)",
+            "maxTermRef": "PL 70.00(2)(b)",
+            "altDefiniteMax1yr": false,
+            "probationEligibleYears": 5
+          },
+          "ClassA_II": {
+            "type": "indeterminate",
+            "maxTermYears": "life",
+            "minYears": [3, 8.33],
+            "_note": "PL 70.00(3)(a)(ii): min 3yr to 8yr 4mo. Predatory sexual assault (130.95/130.96) has 10-25yr min — offense-specific override not yet encoded."
+          },
+          "ClassA_I": {
+            "type": "indeterminate",
+            "maxTermYears": "life",
+            "minYears": [15, 25],
+            "_note": "PL 70.00(3)(a)(i): min 15-25yr. Murder 1st (125.27) has 20-25yr min; aggravated murder (125.26) and murder 2nd subd 5 (125.25(5)) get life without parole — offense-specific overrides not yet encoded."
+          }
+        }
       },
-      "ClassD": {
-        "type": "indeterminate",
-        "maxTermYears": [
-          3,
-          7
-        ],
-        "minPeriodFloor": 1,
-        "minPeriodCeiling": "max/3",
-        "minPeriodRef": "PL 70.00(3)(b)",
-        "maxTermRef": "PL 70.00(2)(d)",
-        "altDefiniteMax1yr": true,
-        "probationEligibleYears": 5
+      "second_felony_offender_70_06": {
+        "label": "Second felony offender — PL 70.06",
+        "statute": "PL 70.06(2)-(4)",
+        "sentenceType": "indeterminate",
+        "rows": {
+          "ClassE": {
+            "type": "indeterminate",
+            "maxTermYears": [3, 4],
+            "minPeriodFloor": "max/2",
+            "minPeriodCeiling": null,
+            "minPeriodRef": "PL 70.06(4)(b)",
+            "maxTermRef": "PL 70.06(2)(e), 70.06(4)(a)"
+          },
+          "ClassD": {
+            "type": "indeterminate",
+            "maxTermYears": [4, 7],
+            "minPeriodFloor": "max/2",
+            "minPeriodCeiling": null,
+            "minPeriodRef": "PL 70.06(4)(b)",
+            "maxTermRef": "PL 70.06(2)(d), 70.06(4)(a)"
+          },
+          "ClassC": {
+            "type": "indeterminate",
+            "maxTermYears": [6, 15],
+            "minPeriodFloor": "max/2",
+            "minPeriodCeiling": null,
+            "minPeriodRef": "PL 70.06(4)(b)",
+            "maxTermRef": "PL 70.06(2)(c), 70.06(4)(a)"
+          },
+          "ClassB": {
+            "type": "indeterminate",
+            "maxTermYears": [9, 25],
+            "minPeriodFloor": "max/2",
+            "minPeriodCeiling": null,
+            "minPeriodRef": "PL 70.06(4)(b)",
+            "maxTermRef": "PL 70.06(2)(b), 70.06(4)(a)"
+          },
+          "ClassA_II": {
+            "type": "indeterminate",
+            "maxTermYears": "life",
+            "minYears": [6, 12.5],
+            "_note": "PL 70.06(3)(a)+(4)(a): max life, min 6-12.5yr. Predatory sexual assault (130.95/130.96) has 10-25yr min — offense-specific override."
+          }
+        }
       },
-      "ClassC": {
-        "type": "indeterminate",
-        "maxTermYears": [
-          3,
-          15
-        ],
-        "minPeriodFloor": 1,
-        "minPeriodCeiling": "max/3",
-        "minPeriodRef": "PL 70.00(3)(b)",
-        "maxTermRef": "PL 70.00(2)(c)",
-        "altDefiniteMax1yr": true,
-        "probationEligibleYears": 5
-      },
-      "ClassB": {
-        "type": "indeterminate",
-        "maxTermYears": [
-          3,
-          25
-        ],
-        "minPeriodFloor": 1,
-        "minPeriodCeiling": "max/3",
-        "minPeriodRef": "PL 70.00(3)(b)",
-        "maxTermRef": "PL 70.00(2)(b)",
-        "altDefiniteMax1yr": false,
-        "probationEligibleYears": 5
-      },
-      "ClassA_II": {
-        "type": "indeterminate",
-        "maxTermYears": "life",
-        "minYears": [3, 8.33],
-        "_note": "PL 70.00(3)(a)(ii): min 3yr to 8yr 4mo. Predatory sexual assault (130.95/130.96) has 10-25yr min — offense-specific override not yet encoded."
-      },
-      "ClassA_I": {
-        "type": "indeterminate",
-        "maxTermYears": "life",
-        "minYears": [15, 25],
-        "_note": "PL 70.00(3)(a)(i): min 15-25yr. Murder 1st (125.27) has 20-25yr min; aggravated murder (125.26) and murder 2nd subd 5 (125.25(5)) get life without parole — offense-specific overrides not yet encoded."
-      }
-    },
-    "secondFelonyOffender_70_06": {
-      "ClassE": {
-        "type": "indeterminate",
-        "maxTermYears": [
-          3,
-          4
-        ],
-        "minPeriodFloor": "max/2",
-        "minPeriodCeiling": null,
-        "minPeriodRef": "PL 70.06(4)(b)",
-        "maxTermRef": "PL 70.06(2)(e), 70.06(4)(a)"
-      },
-      "ClassD": {
-        "type": "indeterminate",
-        "maxTermYears": [
-          4,
-          7
-        ],
-        "minPeriodFloor": "max/2",
-        "minPeriodCeiling": null,
-        "minPeriodRef": "PL 70.06(4)(b)",
-        "maxTermRef": "PL 70.06(2)(d), 70.06(4)(a)"
-      },
-      "ClassC": {
-        "type": "indeterminate",
-        "maxTermYears": [
-          6,
-          15
-        ],
-        "minPeriodFloor": "max/2",
-        "minPeriodCeiling": null,
-        "minPeriodRef": "PL 70.06(4)(b)",
-        "maxTermRef": "PL 70.06(2)(c), 70.06(4)(a)"
-      },
-      "ClassB": {
-        "type": "indeterminate",
-        "maxTermYears": [
-          9,
-          25
-        ],
-        "minPeriodFloor": "max/2",
-        "minPeriodCeiling": null,
-        "minPeriodRef": "PL 70.06(4)(b)",
-        "maxTermRef": "PL 70.06(2)(b), 70.06(4)(a)"
-      },
-      "ClassA_II": {
-        "type": "indeterminate",
-        "maxTermYears": "life",
-        "minYears": [6, 12.5],
-        "_note": "PL 70.06(3)(a)+(4)(a): max life, min 6-12.5yr. Predatory sexual assault (130.95/130.96) has 10-25yr min — offense-specific override."
-      }
-    },
-    "persistentFelonyOffender_70_10": {
-      "note": "Discretionary. Court MAY sentence as Class A-I. Requires separate judicial finding, not automatic from 2 priors alone.",
-      "allClasses": {
-        "type": "indeterminate",
+      "persistent_felony_offender_70_10": {
+        "label": "Persistent felony offender — PL 70.10 (discretionary)",
+        "statute": "PL 70.10",
+        "sentenceType": "indeterminate",
         "discretionary": true,
-        "possibleMinYears": [
-          15,
-          25
-        ],
-        "possibleMaxYears": "life"
+        "_note": "Discretionary. Court MAY sentence as Class A-I. Requires separate judicial finding, not automatic from 2 priors alone.",
+        "rows": {
+          "allClasses": {"type": "indeterminate", "discretionary": true, "possibleMinYears": [15, 25], "possibleMaxYears": "life"}
+        }
       }
     }
   },
@@ -279,204 +296,187 @@
       "70.04 ClassD floor is 5 years (vs 70.02 ClassD floor of 2 years) per 70.04(3)(c). 70.04 ClassE floor is 3 years (vs 70.02 ClassE floor of 1.5 years) per 70.04(3)(d). Confirmed from provided 70.04 text.",
       "70.08 ClassE: no provision in PL 70.08(3) for Class E violent felonies -- 70.08 only covers ClassA_II, ClassB, ClassC, ClassD. A persistent violent felony offender convicted of a ClassE VFO has no 70.08 minimum range. Flag for further legal research."
     ],
-    "firstVFOffender_70_02": {
-      "ClassB": {
-        "type": "determinate",
-        "termYears": [
-          5,
-          25
-        ],
-        "prsYears": [
-          2.5,
-          5
-        ],
-        "wholeOrHalfYears": true
-      },
-      "ClassC": {
-        "type": "determinate",
-        "termYears": [
-          3.5,
-          15
-        ],
-        "prsYears": [
-          2.5,
-          5
-        ],
-        "wholeOrHalfYears": true
-      },
-      "ClassD": {
-        "type": "determinate",
-        "termYears": [
-          2,
-          7
-        ],
-        "prsYears": [
-          1.5,
-          3
-        ],
-        "wholeOrHalfYears": true,
-        "_note": "Applies when DOCCS commitment required per 70.02(2)(b)/(3)(c); otherwise Class D felony provisions govern"
-      },
-      "ClassE": {
-        "type": "determinate",
-        "termYears": [
-          1.5,
-          4
-        ],
-        "prsYears": [
-          1.5,
-          3
-        ],
-        "wholeOrHalfYears": true
-      }
-    },
-    "secondViolentFelonyOffender_70_04": {
-      "ClassB": {
-        "type": "determinate",
-        "termYears": [
-          10,
-          25
-        ],
-        "prsYears": [
-          2.5,
-          5
-        ],
-        "wholeOrHalfYears": true
-      },
-      "ClassC": {
-        "type": "determinate",
-        "termYears": [
-          7,
-          15
-        ],
-        "prsYears": [
-          2.5,
-          5
-        ],
-        "wholeOrHalfYears": true
-      },
-      "ClassD": {
-        "type": "determinate",
-        "termYears": [
-          5,
-          7
-        ],
-        "prsYears": [
-          1.5,
-          3
-        ],
-        "wholeOrHalfYears": true
-      },
-      "ClassE": {
-        "type": "determinate",
-        "termYears": [
-          3,
-          4
-        ],
-        "prsYears": [
-          1.5,
-          3
-        ],
-        "wholeOrHalfYears": true
-      }
-    },
-    "secondFelonyOffenderVFO_70_06_6": {
-      "_ref": "PL 70.06(6) — determinate sentence for second felony offender convicted of a VFO. NB Repealed September 1, 2027.",
-      "ClassB": {
-        "type": "determinate",
-        "termYears": [8, 25],
-        "prsYears": [2.5, 5],
-        "wholeOrHalfYears": true
-      },
-      "ClassC": {
-        "type": "determinate",
-        "termYears": [5, 15],
-        "prsYears": [2.5, 5],
-        "wholeOrHalfYears": true
-      },
-      "ClassD": {
-        "type": "determinate",
-        "termYears": [3, 7],
-        "prsYears": [1.5, 3],
-        "wholeOrHalfYears": true
-      },
-      "ClassE": {
-        "type": "determinate",
-        "termYears": [2, 4],
-        "prsYears": [1.5, 3],
-        "wholeOrHalfYears": true
-      }
-    },
-    "persistentViolentFelonyOffender_70_08": {
-      "_notes": [
-        "Indeterminate sentence; maximum term is life imprisonment per PL 70.08(2). Minimum period fixed by court within statutory range per 70.08(3). Source: verbatim from provided PL 70.08 text.",
-        "SUNSET: Two versions of 70.08(3) exist. Pre-sunset (current, effective until September 1, 2027) has higher minimums. Post-sunset (effective September 1, 2027) has lower minimums. Both encoded below.",
-        "Class E violent felony: NO provision in PL 70.08(3). Statute only covers ClassA_II, ClassB, ClassC, ClassD. Persistent violent felony offender status for ClassE VFO -- gap; flag for legal research."
-      ],
-      "preSunset_until_2027_09_01": {
-        "ClassA_II": {
-          "type": "indeterminate",
-          "maxYears": "life",
-          "minYearsFixed": 25,
-          "_ref": "70.08(3)(a) -- predatory sexual assault (130.95) or predatory sexual assault against a child (130.96)"
-        },
-        "ClassB": {
-          "type": "indeterminate",
-          "maxYears": "life",
-          "minYears": [
-            20,
-            25
-          ]
-        },
-        "ClassC": {
-          "type": "indeterminate",
-          "maxYears": "life",
-          "minYears": [
-            16,
-            25
-          ]
-        },
-        "ClassD": {
-          "type": "indeterminate",
-          "maxYears": "life",
-          "minYears": [
-            12,
-            25
-          ]
+    "statuses": {
+      "first_offender": {
+        "label": "First violent felony offender — PL 70.02",
+        "statute": "PL 70.02(3)",
+        "sentenceType": "determinate",
+        "prsRef": "PL 70.00(6), 70.45(2)",
+        "rows": {
+          "ClassB": {"type": "determinate", "termYears": [5, 25], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
+          "ClassC": {"type": "determinate", "termYears": [3.5, 15], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
+          "ClassD": {
+            "type": "determinate",
+            "termYears": [2, 7],
+            "prsYears": [1.5, 3],
+            "wholeOrHalfYears": true,
+            "_note": "Applies when DOCCS commitment required per 70.02(2)(b)/(3)(c); otherwise Class D felony provisions govern"
+          },
+          "ClassE": {"type": "determinate", "termYears": [1.5, 4], "prsYears": [1.5, 3], "wholeOrHalfYears": true}
         }
       },
-      "postSunset_from_2027_09_01": {
-        "ClassA_II": {
-          "type": "indeterminate",
-          "maxYears": "life",
-          "minYearsFixed": 25,
-          "_ref": "70.08(3)(a) -- predatory sexual assault (130.95) or predatory sexual assault against a child (130.96)"
-        },
-        "ClassB": {
-          "type": "indeterminate",
-          "maxYears": "life",
-          "minYears": [
-            10,
-            25
-          ]
-        },
-        "ClassC": {
-          "type": "indeterminate",
-          "maxYears": "life",
-          "minYears": [
-            8,
-            25
-          ]
-        },
-        "ClassD": {
-          "type": "indeterminate",
-          "maxYears": "life",
-          "minYears": [
-            6,
-            25
-          ]
+      "second_felony_offender_vfo_70_06_6": {
+        "label": "Second felony offender convicted of a violent felony — PL 70.06(6)",
+        "statute": "PL 70.06(6)",
+        "sentenceType": "determinate",
+        "prsRef": "PL 70.00(6), 70.45(2)",
+        "_ref": "PL 70.06(6) — determinate sentence for second felony offender convicted of a VFO. NB Repealed September 1, 2027.",
+        "rows": {
+          "ClassB": {"type": "determinate", "termYears": [8, 25], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
+          "ClassC": {"type": "determinate", "termYears": [5, 15], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
+          "ClassD": {"type": "determinate", "termYears": [3, 7], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
+          "ClassE": {"type": "determinate", "termYears": [2, 4], "prsYears": [1.5, 3], "wholeOrHalfYears": true}
+        }
+      },
+      "second_violent_felony_offender_70_04": {
+        "label": "Second violent felony offender — PL 70.04",
+        "statute": "PL 70.04(3)",
+        "sentenceType": "determinate",
+        "prsRef": "PL 70.00(6), 70.45(2)",
+        "rows": {
+          "ClassB": {"type": "determinate", "termYears": [10, 25], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
+          "ClassC": {"type": "determinate", "termYears": [7, 15], "prsYears": [2.5, 5], "wholeOrHalfYears": true},
+          "ClassD": {"type": "determinate", "termYears": [5, 7], "prsYears": [1.5, 3], "wholeOrHalfYears": true},
+          "ClassE": {"type": "determinate", "termYears": [3, 4], "prsYears": [1.5, 3], "wholeOrHalfYears": true}
+        }
+      },
+      "persistent_violent_felony_offender_70_08": {
+        "label": "Persistent violent felony offender — PL 70.08",
+        "statute": "PL 70.08(2), 70.08(3)",
+        "sentenceType": "indeterminate",
+        "activeVersion": "preSunset_until_2027_09_01",
+        "_notes": [
+          "Indeterminate sentence; maximum term is life imprisonment per PL 70.08(2). Minimum period fixed by court within statutory range per 70.08(3). Source: verbatim from provided PL 70.08 text.",
+          "SUNSET: Two versions of 70.08(3) exist. Pre-sunset (current, effective until September 1, 2027) has higher minimums. Post-sunset (effective September 1, 2027) has lower minimums. Both encoded below.",
+          "Class E violent felony: NO provision in PL 70.08(3). Statute only covers ClassA_II, ClassB, ClassC, ClassD. Persistent violent felony offender status for ClassE VFO -- gap; flag for legal research."
+        ],
+        "versions": {
+          "preSunset_until_2027_09_01": {
+            "ClassA_II": {
+              "type": "indeterminate",
+              "maxYears": "life",
+              "minYearsFixed": 25,
+              "_ref": "70.08(3)(a) -- predatory sexual assault (130.95) or predatory sexual assault against a child (130.96)"
+            },
+            "ClassB": {"type": "indeterminate", "maxYears": "life", "minYears": [20, 25]},
+            "ClassC": {"type": "indeterminate", "maxYears": "life", "minYears": [16, 25]},
+            "ClassD": {"type": "indeterminate", "maxYears": "life", "minYears": [12, 25]}
+          },
+          "postSunset_from_2027_09_01": {
+            "ClassA_II": {
+              "type": "indeterminate",
+              "maxYears": "life",
+              "minYearsFixed": 25,
+              "_ref": "70.08(3)(a) -- predatory sexual assault (130.95) or predatory sexual assault against a child (130.96)"
+            },
+            "ClassB": {"type": "indeterminate", "maxYears": "life", "minYears": [10, 25]},
+            "ClassC": {"type": "indeterminate", "maxYears": "life", "minYears": [8, 25]},
+            "ClassD": {"type": "indeterminate", "maxYears": "life", "minYears": [6, 25]}
+          }
         }
       }
+    }
+  },
+  "classificationModifiers": {
+    "_ref": "Modifiers that change the offense CLASSIFICATION before a sentencing track is chosen. Applied in `order`; each sees the previous result. For each modifier, the first branch whose `map` contains the current classification fires. `vfo`: keep = unchanged, derive = re-check VFO_LIST for the new class, deem = statute deems it a VFO, undeem = sentenced as non-VFO.",
+    "order": [
+      "sexually_motivated_felony",
+      "hate_crime",
+      "terrorism"
+    ],
+    "sexually_motivated_felony": {
+      "statute": "PL 130.91",
+      "factField": "sexually_motivated",
+      "eligibilityList": "SMF_LIST",
+      "felonyOnly": true,
+      "_note": "Violent redesignation only, no tier shift. Statutory basis for redesignation not explicit in 130.91 text; derived from DB classification_resolution (unverified — flagged for legal review per TODO.md).",
+      "branches": [
+        {
+          "name": "violent_redesignation",
+          "vfo": "deem",
+          "map": {
+            "ClassB_Felony": "ClassB_Violent_Felony",
+            "ClassC_Felony": "ClassC_Violent_Felony",
+            "ClassD_Felony": "ClassD_Violent_Felony",
+            "ClassE_Felony": "ClassE_Violent_Felony"
+          }
+        },
+        {
+          "name": "violent_redesignation",
+          "vfo": "keep",
+          "map": {
+            "ClassB_Violent_Felony": "ClassB_Violent_Felony",
+            "ClassC_Violent_Felony": "ClassC_Violent_Felony",
+            "ClassD_Violent_Felony": "ClassD_Violent_Felony",
+            "ClassE_Violent_Felony": "ClassE_Violent_Felony"
+          }
+        }
+      ]
+    },
+    "hate_crime": {
+      "statute": "PL 485.10",
+      "factField": "hate_crime_motivated",
+      "eligibilityList": "HATECRIME_LIST",
+      "felonyOnly": false,
+      "_note": "485.10(2): one category higher for misdemeanors and C/D/E felonies; violent stays violent. VFO re-derived (485.10 does not deem non-VFOs violent). Class B and A-I keep their class; minimum floors are applied after the disposition (hateCrimeBump block).",
+      "branches": [
+        {
+          "name": "misdemeanorOrClassCDE",
+          "vfo": "derive",
+          "map": {
+            "ClassA_Misdemeanor": "ClassE_Felony",
+            "ClassB_Misdemeanor": "ClassA_Misdemeanor",
+            "Unclassified_Misdemeanor": "ClassA_Misdemeanor",
+            "ClassE_Felony": "ClassD_Felony",
+            "ClassD_Felony": "ClassC_Felony",
+            "ClassC_Felony": "ClassB_Felony",
+            "ClassE_Violent_Felony": "ClassD_Violent_Felony",
+            "ClassD_Violent_Felony": "ClassC_Violent_Felony",
+            "ClassC_Violent_Felony": "ClassB_Violent_Felony"
+          }
+        },
+        {
+          "name": "ClassB",
+          "vfo": "keep",
+          "map": {"ClassB_Felony": "ClassB_Felony", "ClassB_Violent_Felony": "ClassB_Violent_Felony"}
+        },
+        {
+          "name": "ClassA_I",
+          "vfo": "keep",
+          "map": {"ClassA_I_Felony": "ClassA_I_Felony"}
+        }
+      ]
+    },
+    "terrorism": {
+      "statute": "PL 490.25",
+      "factField": "terrorism_motivated",
+      "eligibilityList": "TERRORISM_LIST",
+      "felonyOnly": true,
+      "_note": "490.25(2): C/D/E one tier higher and deemed a VFO; B deemed A-I (sentenced per 70.00); A-I → life without parole (applied after the disposition).",
+      "branches": [
+        {
+          "name": "ClassCDE",
+          "vfo": "deem",
+          "map": {
+            "ClassE_Felony": "ClassD_Violent_Felony",
+            "ClassD_Felony": "ClassC_Violent_Felony",
+            "ClassC_Felony": "ClassB_Violent_Felony",
+            "ClassE_Violent_Felony": "ClassD_Violent_Felony",
+            "ClassD_Violent_Felony": "ClassC_Violent_Felony",
+            "ClassC_Violent_Felony": "ClassB_Violent_Felony"
+          }
+        },
+        {
+          "name": "ClassB_to_A_I",
+          "vfo": "undeem",
+          "map": {"ClassB_Felony": "ClassA_I_Felony", "ClassB_Violent_Felony": "ClassA_I_Felony"}
+        },
+        {
+          "name": "life_without_parole",
+          "vfo": "keep",
+          "map": {"ClassA_I_Felony": "ClassA_I_Felony"}
+        }
+      ]
     }
   },
   "hateCrimeBump": {
@@ -886,35 +886,31 @@
   },
   "juvenileOffender": {
     "_ref": "PL 70.05 — indeterminate sentence for juvenile offender (13-15 yr old charged with felony). Max terms and minimum periods per 70.05(2)/(3).",
-    "ClassA_I_murder": {
-      "type": "indeterminate",
-      "maxTerm": "life",
-      "minYears": [5, 9],
-      "_ref": "70.05(2)(a) + (3)(a) — murder 2nd (125.25): max life, min 5-9yr"
-    },
-    "ClassA_I_arson_kidnap": {
-      "type": "indeterminate",
-      "maxTermYears": [12, 15],
-      "minYears": [1, 5],
-      "_ref": "70.05(2)(b) + (3)(b) — arson 1st (150.20) / kidnapping 1st (135.25): max 12-15yr, min 1-5yr"
-    },
-    "ClassB": {
-      "type": "indeterminate",
-      "maxTermYears": [1, 10],
-      "minTermRule": "1yr to 1/3 of max",
-      "_ref": "70.05(2)(c) — max ≤10yr"
-    },
-    "ClassC": {
-      "type": "indeterminate",
-      "maxTermYears": [1, 7],
-      "minTermRule": "1yr to 1/3 of max",
-      "_ref": "70.05(2)(d) — max ≤7yr"
-    },
-    "ClassD": {
-      "type": "indeterminate",
-      "maxTermYears": [1, 4],
-      "minTermRule": "1yr to 1/3 of max",
-      "_ref": "70.05(2)(e) — max ≤4yr"
+    "statuses": {
+      "not_applicable": {
+        "label": "Juvenile offender — PL 70.05 (prior record does not change the range)",
+        "statute": "PL 70.05(2)/(3)",
+        "sentenceType": "indeterminate",
+        "rows": {
+          "ClassA_I_murder": {
+            "type": "indeterminate",
+            "maxTerm": "life",
+            "minYears": [5, 9],
+            "_ref": "70.05(2)(a) + (3)(a) — murder 2nd (125.25): max life, min 5-9yr",
+            "statute": "PL 70.05(2)(a), 70.05(3)(a)"
+          },
+          "ClassA_I_arson_kidnap": {
+            "type": "indeterminate",
+            "maxTermYears": [12, 15],
+            "minYears": [1, 5],
+            "_ref": "70.05(2)(b) + (3)(b) — arson 1st (150.20) / kidnapping 1st (135.25): max 12-15yr, min 1-5yr",
+            "statute": "PL 70.05(2)(b), 70.05(3)(b)"
+          },
+          "ClassB": {"type": "indeterminate", "maxTermYears": [1, 10], "minTermRule": "1yr to 1/3 of max", "_ref": "70.05(2)(c) — max ≤10yr"},
+          "ClassC": {"type": "indeterminate", "maxTermYears": [1, 7], "minTermRule": "1yr to 1/3 of max", "_ref": "70.05(2)(d) — max ≤7yr"},
+          "ClassD": {"type": "indeterminate", "maxTermYears": [1, 4], "minTermRule": "1yr to 1/3 of max", "_ref": "70.05(2)(e) — max ≤4yr"}
+        }
+      }
     }
   }
 }

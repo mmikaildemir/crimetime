@@ -1,885 +1,87 @@
 """The sentencing decision engine.
 
-resolve(offense, case_facts) -> SentencingOutput
+resolve(section, case_facts) -> SentencingOutput
 
-This is the main entry point. Given an offense (by section) and the case
-facts, it produces a structured sentencing output covering all 21 output
-types from the reference example.
+The engine is a fixed pipeline of named stages over a SentencingContext:
+
+  1. classify                 offense classification, attempt (PL 110.05) and
+                              offense-intrinsic conditional classification
+  2. classification modifiers SMF (130.91) -> hate crime (485.10) ->
+                              terrorism (490.25), driven by the
+                              classificationModifiers table
+  3. track + offender status  which Article 70 scheme governs, and the status
+                              it assigns from the predicate facts
+                              (crimetime/tracks.py)
+  4. dispositions             primary (+ PRS) and alternatives from the track
+  5. adjustments              post-disposition changes, in ADJUSTMENTS order
+  6. exceptions, financial obligations, collateral requirements
+
+Every stage appends TraceStep records, so the output explains itself.
 """
 
 from __future__ import annotations
 
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Callable, Optional
 
 from . import reference
 from .exceptions import generate_all_exceptions
 from .financial import generate_all_financial, generate_collateral_requirements
 from .models import (
-    AgeCategory,
     CaseFacts,
-    CollateralRequirement,
     Disposition,
     DispositionType,
     ModifierApplied,
-    PostReleaseSupervision,
+    OffenderStatus,
     PriorRecord,
-    PriorRecordStatus,
     SentencingOutput,
     TermRange,
     TermUnit,
+    TraceStep,
 )
 from .resolvers import (
     is_felony,
     is_for_hire_eligible,
-    is_hatecrime_eligible,
-    is_misdemeanor,
-    is_smf_eligible,
-    is_terrorism_eligible,
-    is_violation,
     is_vfo,
     resolve_attempt_classification,
     resolve_vfo_of_attempt,
 )
+from .tracks import Track, select_track
 
 
 # ---------------------------------------------------------------------------
-# Prior-record-status key mapping
-# ---------------------------------------------------------------------------
-
-_STATUS_TABLE_KEY_NONVFO = {
-    PriorRecordStatus.FIRST_OFFENDER: "firstOffender",
-    PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06: "secondFelonyOffender_70_06",
-    PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10: "persistentFelonyOffender_70_10",
-}
-
-_STATUS_TABLE_KEY_VFO = {
-    PriorRecordStatus.FIRST_OFFENDER: "firstVFOffender_70_02",
-    PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04: "secondViolentFelonyOffender_70_04",
-    PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08: "persistentViolentFelonyOffender_70_08",
-    PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06: "secondFelonyOffenderVFO_70_06_6",
-}
-
-_CLASS_KEY_MAP = {
-    "ClassA_I_Felony": "ClassA_I",
-    "ClassA_II_Felony": "ClassA_II",
-    "ClassB_Felony": "ClassB",
-    "ClassC_Felony": "ClassC",
-    "ClassD_Felony": "ClassD",
-    "ClassE_Felony": "ClassE",
-    # Violent variants map to same class letter
-    "ClassB_Violent_Felony": "ClassB",
-    "ClassC_Violent_Felony": "ClassC",
-    "ClassD_Violent_Felony": "ClassD",
-    "ClassE_Violent_Felony": "ClassE",
-}
-
-
-def _legacy_status(prior: PriorRecord) -> PriorRecordStatus:
-    """Temporary: collapse predicate facts to the legacy status selector."""
-    if prior.predicate_vfos >= 2:
-        return PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08
-    if prior.predicate_vfos == 1:
-        return PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04
-    if prior.predicate_felonies >= 2:
-        return PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10
-    if prior.predicate_felonies == 1:
-        return PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06
-    return PriorRecordStatus.FIRST_OFFENDER
-
-
-def _class_key(classification: str) -> str:
-    """Map a classification to its sentencing-table class key (e.g. 'ClassD')."""
-    return _CLASS_KEY_MAP.get(classification, classification)
-
-
-# ---------------------------------------------------------------------------
-# Primary disposition (determinate / indeterminate / definite)
+# Context
 # ---------------------------------------------------------------------------
 
 
-# Sections that are Class A-II but explicitly treated as VFOs for PL 70.08
-# (persistent violent felony offender) purposes, even though they're not
-# in the standard VFO_LIST (70.02(1)) which only covers B/C/D/E.
-_SPECIAL_70_08_AII_SECTIONS = {"130.95", "130.96"}
+@dataclass
+class SentencingContext:
+    """Mutable state threaded through the pipeline stages."""
 
+    section: str
+    offense: dict
+    case_facts: CaseFacts
+    classification: str = ""
+    vfo: bool = False
+    modifiers_applied: list[ModifierApplied] = field(default_factory=list)
+    track: Optional[Track] = None
+    status: Optional[OffenderStatus] = None
+    dispositions: list[Disposition] = field(default_factory=list)
+    trace: list[TraceStep] = field(default_factory=list)
 
-def _is_drug_offense(offense: dict) -> bool:
-    """Check if an offense is a drug felony (Article 220 or 222) per
-    PL 70.70/70.71. These take determinate sentences distinct from 70.00/70.02."""
-    article = offense.get("article", 0)
-    return article in (220, 222)
+    @property
+    def prior(self) -> PriorRecord:
+        return self.case_facts.prior_record
 
+    def note(self, stage: str, detail: str, *statute_refs: str) -> None:
+        self.trace.append(TraceStep(stage=stage, detail=detail, statute_refs=list(statute_refs)))
 
-# Felony sex offense sections outside Article 130 (per PL 70.80(1)(a))
-_SEX_OFFENSE_EXTRA_SECTIONS = {
-    "230.05", "230.06", "230.11", "230.12", "230.13",
-    "255.26", "255.27",
-}
-
-
-def _is_sex_offense(offense: dict, section: str) -> bool:
-    """Check if an offense is a felony sex offense per PL 70.80(1)(a).
-    Article 130 felonies, specific 230/255 sections, and sexually motivated
-    felonies (checked via SMF eligibility)."""
-    article = offense.get("article", 0)
-    if article == 130:
-        return True
-    return section in _SEX_OFFENSE_EXTRA_SECTIONS
-
-
-# Sections that get special Class A-I juvenile treatment (70.05(2)(a)/(b))
-_JUVENILE_A_I_MURDER = "125.25"
-_JUVENILE_A_I_ARSON_KIDNAP = {"150.20", "135.25"}
-
-
-def _resolve_juvenile_offender_disposition(
-    classification: str,
-    section: str,
-) -> Disposition:
-    """Resolve a juvenile offender disposition per PL 70.05.
-
-    Juvenile offenders get indeterminate sentences with reduced max terms
-    and minimums. Class A-I has special categories for murder 2nd vs
-    arson/kidnapping 1st.
-    """
-    tables = reference.get_juvenile_offender_table()
-    cls_key = _class_key(classification)
-
-    # Class A-I special cases
-    if cls_key == "ClassA_I":
-        if section == _JUVENILE_A_I_MURDER:
-            row = tables.get("ClassA_I_murder", {})
-        elif section in _JUVENILE_A_I_ARSON_KIDNAP:
-            row = tables.get("ClassA_I_arson_kidnap", {})
-        else:
-            # Other A-I felonies by juvenile offender — not explicitly in 70.05
-            # Fall back to standard A-I (most likely not applicable, but safe)
-            row = tables.get("ClassA_I_arson_kidnap", {})
-    else:
-        row = tables.get(cls_key, {})
-
-    if not row:
-        raise ValueError(
-            f"No juvenile offender table entry for {cls_key} (section {section})"
-        )
-
-    max_term = row.get("maxTerm", row.get("maxTermYears"))
-    min_years = row.get("minYears")
-    min_rule = row.get("minTermRule")
-
-    if max_term == "life":
-        return Disposition(
-            type=DispositionType.INDETERMINATE,
-            label=f"Indeterminate sentence — {min_years[0]}–{min_years[1]} years to life",
-            statute_refs=["PL 70.05(2)(a), 70.05(3)(a)"],
-            term=TermRange(min_value=min_years[0], max_value=999),
-            conditions=min_rule,
-        )
-    elif min_years:
-        return Disposition(
-            type=DispositionType.INDETERMINATE,
-            label=f"Indeterminate sentence — {min_years[0]}–{min_years[1]} to {max_term[0]}–{max_term[1]} years max",
-            statute_refs=["PL 70.05(2)(b), 70.05(3)(b)"],
-            term=TermRange(min_value=min_years[0], max_value=max_term[1]),
-            conditions=min_rule,
-        )
-    else:
-        return Disposition(
-            type=DispositionType.INDETERMINATE,
-            label=f"Indeterminate sentence — 1yr to 1/3 of max (max {max_term[1]} years)",
-            statute_refs=["PL 70.05(2)/(3)"],
-            term=TermRange(min_value=1, max_value=max_term[1]),
-            conditions=min_rule,
-        )
-
-
-def _resolve_drug_felony_disposition(
-    classification: str,
-    section: str,
-    prior_status: PriorRecordStatus,
-) -> tuple[Disposition, Optional[PostReleaseSupervision]]:
-    """Resolve a drug felony disposition per PL 70.70 (non-A) or 70.71 (A).
-
-    Drug felonies get determinate sentences with distinct ranges. VFO drug
-    offenses are handled by the standard 70.02 path (caller checks vfo first).
-    """
-    tables = reference.get_drug_felony_table()
-    cls_key = _class_key(classification)
-    is_class_a = cls_key in ("ClassA_I", "ClassA_II")
-    is_second_felony = prior_status in (
-        PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
-        PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04,
-        PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10,
-        PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08,
-    )
-
-    if is_class_a:
-        if is_second_felony:
-            table_key = "secondFelonyDrugOffender_A_70_71_3"
-            statute = "PL 70.71(3)"
-        else:
-            table_key = "firstFelonyDrugOffender_A_70_71_2"
-            statute = "PL 70.71(2)"
-    else:
-        if is_second_felony:
-            table_key = "secondFelonyDrugOffender_70_70_3"
-            statute = "PL 70.70(3)"
-        else:
-            table_key = "firstFelonyDrugOffender_70_70_2"
-            statute = "PL 70.70(2)"
-
-    row = tables.get(table_key, {}).get(cls_key)
-    if row is None:
-        raise ValueError(
-            f"No {table_key} entry for {cls_key} (section {section})"
-        )
-    term = row["termYears"]
-    disp = Disposition(
-        type=DispositionType.DETERMINATE,
-        label=f"Determinate sentence of {term[0]}–{term[1]} years",
-        statute_refs=[statute],
-        term=TermRange(min_value=term[0], max_value=term[1]),
-    )
-    prs = None
-    if "prsYears" in row:
-        prs = PostReleaseSupervision(
-            min_years=row["prsYears"][0],
-            max_years=row["prsYears"][1],
-            statute_refs=["PL 70.45(2)"],
-        )
-    return disp, prs
-
-
-def _resolve_sex_offense_felony_disposition(
-    classification: str,
-    section: str,
-    prior_status: PriorRecordStatus,
-) -> tuple[Disposition, Optional[PostReleaseSupervision]]:
-    """Resolve a felony sex offense disposition per PL 70.80.
-
-    All felony sex offenses get determinate sentences with sex-offense-specific
-    PRS per 70.45(2-a). Routing:
-    - First offender → 70.80(4) ranges (same as 70.02(3) VFO ranges)
-    - Predicate (second felony) with non-violent predicate → 70.80(5)(b)
-    - Predicate (second felony) with violent predicate → 70.80(5)(c)
-    """
-    tables = reference.get_sex_offense_felony_table()
-    cls_key = _class_key(classification)
-    is_second_felony = prior_status in (
-        PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06,
-        PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04,
-        PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10,
-        PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08,
-    )
-    is_violent_predicate = prior_status in (
-        PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04,
-        PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08,
-    )
-
-    if is_second_felony:
-        if is_violent_predicate:
-            table_key = "predicateViolent_70_80_5c"
-            statute = "PL 70.80(5)(c)"
-        else:
-            table_key = "predicateNonViolent_70_80_5b"
-            statute = "PL 70.80(5)(b)"
-    else:
-        table_key = "firstOffender_70_80_4"
-        statute = "PL 70.80(4)"
-
-    row = tables.get(table_key, {}).get(cls_key)
-    if row is None:
-        raise ValueError(
-            f"No {table_key} entry for {cls_key} (section {section})"
-        )
-    term = row["termYears"]
-    disp = Disposition(
-        type=DispositionType.DETERMINATE,
-        label=f"Determinate sentence of {term[0]}–{term[1]} years",
-        statute_refs=[statute],
-        term=TermRange(min_value=term[0], max_value=term[1]),
-    )
-    prs = None
-    if "prsYears" in row:
-        prs = PostReleaseSupervision(
-            min_years=row["prsYears"][0],
-            max_years=row["prsYears"][1],
-            statute_refs=["PL 70.45(2-a)"],
-        )
-    return disp, prs
-
-
-def _normalize_prior_status(
-    classification: str,
-    section: str,
-    vfo: bool,
-    prior_status: PriorRecordStatus,
-) -> tuple[bool, PriorRecordStatus]:
-    """Normalize the prior record status for the offense's VFO status.
-
-    Two directions:
-
-    NON-VFO with violent-felony prior status:
-      PL 70.04/70.08 require the current offense to be a VFO per 70.02(1).
-      If it's not, fall back: 70.04→70.06, 70.08→70.10 (then 70.06→first
-      offender for A-I/A-II per PL 70.06(6)).
-      Exception: §130.95/§130.96 (A-II) are explicitly named in 70.08(1)(a).
-
-    VFO with non-VFO prior status:
-      PL 70.06(6) prescribes its OWN determinate ranges for a second felony
-      offender convicted of a VFO (B 8-25, C 5-15, D 3-7, E 2-4). Route
-      to the secondFelonyOffenderVFO_70_06_6 table.
-      PL 70.10 (persistent felony offender) is discretionary with no VFO-
-      specific determinate range; falls back to 70.02 first offender.
-      70.08 has no Class E provision per PL 70.08(3) — Class E VFOs with
-      70.08 status fall back to 70.02 first offender.
-    """
-    # --- Special case: §130.95/§130.96 are VFOs for 70.08 despite A-II ---
-    if (
-        section in _SPECIAL_70_08_AII_SECTIONS
-        and prior_status == PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08
-    ):
-        return True, prior_status
-
-    if not vfo:
-        # Non-VFO with violent-felony prior status → fall back
-        if prior_status == PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04:
-            prior_status = PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06
-        elif prior_status == PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08:
-            prior_status = PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10
-
-        # PL 70.06(6): 70.06 doesn't apply to A-I/A-II
-        if (
-            prior_status == PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06
-            and classification in ("ClassA_I_Felony", "ClassA_II_Felony")
-        ):
-            prior_status = PriorRecordStatus.FIRST_OFFENDER
-        return vfo, prior_status
-
-    # VFO + 70.06 → route to 70.06(6) determinate table (has own ranges)
-    # VFO + 70.10 → fall back to 70.02 first offender (70.10 is discretionary,
-    #   no VFO-specific determinate range)
-    if prior_status == PriorRecordStatus.PERSISTENT_FELONY_OFFENDER_70_10:
-        return vfo, PriorRecordStatus.FIRST_OFFENDER
-
-    # 70.08 Class E: PL 70.08(3) has no Class E provision → fall back to 70.02
-    if (
-        prior_status == PriorRecordStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08
-        and classification in ("ClassE_Felony", "ClassE_Violent_Felony")
-    ):
-        return vfo, PriorRecordStatus.FIRST_OFFENDER
-
-    return vfo, prior_status
-
-
-def _format_min_period_rule(row: dict) -> str | None:
-    """Format a human-readable minimum-period rule from structured data fields.
-
-    Handles both the new structured schema (minPeriodFloor / minPeriodCeiling)
-    and the legacy free-text minTermRule for backward compatibility.
-    """
-    floor = row.get("minPeriodFloor")
-    ceiling = row.get("minPeriodCeiling")
-    ref = row.get("minPeriodRef", "")
-
-    if floor is not None or ceiling is not None:
-        parts = []
-        if floor is not None:
-            if isinstance(floor, str):
-                parts.append(f"not less than {floor}")
-            else:
-                parts.append(f"not less than {floor} year{'s' if floor != 1 else ''}")
-        if ceiling is not None:
-            parts.append(f"not more than {ceiling}")
-        rule = ", and ".join(parts) if len(parts) > 1 else parts[0]
-        if ref:
-            rule += f" ({ref})"
-        return f"Minimum period: {rule}"
-
-    legacy = row.get("minTermRule")
-    if legacy:
-        return f"Minimum period: {legacy}"
-
-    return None
-
-
-def _format_min_period_short(row: dict) -> str:
-    """Compact min-period summary for the disposition label (no statute ref)."""
-    floor = row.get("minPeriodFloor")
-    ceiling = row.get("minPeriodCeiling")
-
-    if floor is not None or ceiling is not None:
-        parts = []
-        if floor is not None:
-            if isinstance(floor, str):
-                parts.append(f"{floor}")
-            else:
-                parts.append(f"{floor} yr" if floor == 1 else f"{floor} yrs")
-        if ceiling is not None:
-            parts.append(f"to {ceiling}")
-        return " ".join(parts) if parts else ""
-
-    legacy = row.get("minTermRule")
-    if legacy:
-        return legacy
-
-    return ""
-
-
-def _resolve_primary_felony_disposition(
-    classification: str,
-    section: str,
-    vfo: bool,
-    prior_status: PriorRecordStatus,
-) -> tuple[Disposition, Optional[PostReleaseSupervision]]:
-    """Resolve the primary disposition for a felony offense.
-
-    VFOs get determinate sentences (PL 70.02 / 70.04 / 70.08).
-    Non-VFOs get indeterminate sentences (PL 70.00 / 70.06 / 70.10).
-    """
-    vfo, prior_status = _normalize_prior_status(
-        classification, section, vfo, prior_status
-    )
-    cls_key = _class_key(classification)
-
-    if vfo:
-        tables = reference.get_violent_felony_table()
-        status_key = _STATUS_TABLE_KEY_VFO[prior_status]
-
-        # 70.02, 70.04, and 70.06(6) use "termYears" (determinate); 70.08 uses indeterminate
-        if status_key in ("firstVFOffender_70_02", "secondViolentFelonyOffender_70_04", "secondFelonyOffenderVFO_70_06_6"):
-            status_table = tables[status_key]
-            row = status_table.get(cls_key)
-            if row is None:
-                raise ValueError(
-                    f"No {status_key} table entry for {cls_key} "
-                    f"(section {section}, classification {classification})"
-                )
-            term = row["termYears"]
-            statute_map = {
-                "firstVFOffender_70_02": "PL 70.02(3)",
-                "secondViolentFelonyOffender_70_04": "PL 70.04(3)",
-                "secondFelonyOffenderVFO_70_06_6": "PL 70.06(6)",
-            }
-            statute_ref = statute_map[status_key]
-
-            # 70.02(3) offense-specific elevated determinate ranges
-            # (only applies to first VFO offender per 70.02, not 70.04/70.06)
-            if status_key == "firstVFOffender_70_02":
-                override = reference.get_offense_overrides().get(section, {})
-                if "determinateOverride" in override:
-                    term = override["determinateOverride"]
-                    statute_ref = override.get("_ref", statute_ref)
-            disp = Disposition(
-                type=DispositionType.DETERMINATE,
-                label=f"Determinate sentence of {term[0]}–{term[1]} years",
-                statute_refs=[statute_ref],
-                term=TermRange(min_value=term[0], max_value=term[1]),
-            )
-            prs = None
-            if "prsYears" in row:
-                prs = PostReleaseSupervision(
-                    min_years=row["prsYears"][0],
-                    max_years=row["prsYears"][1],
-                    statute_refs=["PL 70.00(6), 70.45(2)"],
-                )
-            return disp, prs
-
-        elif status_key == "persistentViolentFelonyOffender_70_08":
-            # 70.08 is indeterminate — handled differently
-            # For now, route through the 70.08 table
-            pvo = tables.get("persistentViolentFelonyOffender_70_08", {})
-            pre_sunset = pvo.get("preSunset_until_2027_09_01", {})
-            row = pre_sunset.get(cls_key)
-            if row is None:
-                raise ValueError(
-                    f"No 70.08 table entry for {cls_key} (section {section})"
-                )
-            disp = Disposition(
-                type=DispositionType.INDETERMINATE,
-                label=f"Indeterminate sentence — {row.get('minYears', 'life')} to life",
-                statute_refs=["PL 70.08(2), 70.08(3)"],
-                term=TermRange(
-                    min_value=row.get("minYears", [20, 25])[0] if isinstance(row.get("minYears"), list) else row.get("minYearsFixed", 20),
-                    max_value=999,
-                ),
-            )
-            return disp, None
-
-    else:
-        # Non-violent felony — indeterminate per PL 70.00 / 70.06 / 70.10
-        tables = reference.get_nonviolent_felony_table()
-        status_key = _STATUS_TABLE_KEY_NONVFO[prior_status]
-
-        # Map persistent felony offender to the persistent table
-        if status_key == "persistentFelonyOffender_70_10":
-            pfo = tables.get("persistentFelonyOffender_70_10", {})
-            all_classes = pfo.get("allClasses", {})
-            disp = Disposition(
-                type=DispositionType.INDETERMINATE,
-                label="Indeterminate sentence — court MAY sentence as Class A-I (discretionary)",
-                statute_refs=["PL 70.10"],
-                term=TermRange(
-                    min_value=all_classes.get("possibleMinYears", [15, 25])[0],
-                    max_value=999,
-                ),
-                conditions="Discretionary — requires separate judicial finding, not automatic from 2 priors alone",
-            )
-            return disp, None
-
-        status_table = tables.get(status_key, {})
-        row = status_table.get(cls_key)
-        if row is None:
-            raise ValueError(
-                f"No {status_key} table entry for {cls_key} "
-                f"(section {section}, classification {classification})"
-            )
-
-        max_years = row["maxTermYears"]
-        statute = "PL 70.00(2)-(3)" if status_key == "firstOffender" else "PL 70.06(2)-(4)"
-        min_period_str = _format_min_period_rule(row)
-        if max_years == "life":
-            min_period = row.get("minYears", [15, 25])
-            disp = Disposition(
-                type=DispositionType.INDETERMINATE,
-                label=f"Indeterminate sentence — {min_period[0]}–{min_period[1]} years to life",
-                statute_refs=[statute],
-                term=TermRange(min_value=min_period[0], max_value=999),
-                conditions=min_period_str,
-            )
-        else:
-            label = f"Indeterminate sentence — max {max_years[0]}–{max_years[1]} years"
-            if min_period_str:
-                label += f", min {_format_min_period_short(row)}"
-            disp = Disposition(
-                type=DispositionType.INDETERMINATE,
-                label=label,
-                statute_refs=[statute],
-                term=TermRange(min_value=max_years[0], max_value=max_years[1]),
-                conditions=min_period_str,
-            )
-        return disp, None
-
-    raise ValueError(f"Could not resolve primary disposition for {section}")
-
-
-def _resolve_primary_misdemeanor_disposition(
-    classification: str,
-) -> Disposition:
-    """Resolve the primary disposition for a misdemeanor."""
-    tables = reference.get_misdemeanor_table()
-    if classification == "ClassA_Misdemeanor":
-        row = tables.get("ClassA", {})
-        first = row.get("firstOffender", {})
-        max_days = first.get("maxTermDays", 364)
-        return Disposition(
-            type=DispositionType.DEFINITE,
-            label=f"Definite sentence up to {max_days} days",
-            statute_refs=["PL 70.15(1)"],
-            term=TermRange(
-                min_value=0,
-                max_value=max_days,
-                unit=TermUnit.DAYS,
-            ),
-        )
-    elif classification == "ClassB_Misdemeanor":
-        row = tables.get("ClassB", {})
-        return Disposition(
-            type=DispositionType.DEFINITE,
-            label=f"Definite sentence up to {row.get('firstOffender', {}).get('maxTermMonths', 3)} months",
-            statute_refs=["PL 70.15(2)"],
-            term=TermRange(
-                min_value=0,
-                max_value=row.get("firstOffender", {}).get("maxTermMonths", 3),
-                unit=TermUnit.MONTHS,
-            ),
-        )
-    else:
-        return Disposition(
-            type=DispositionType.DEFINITE,
-            label="Definite sentence as provided in the law creating the offense (max 364 days)",
-            statute_refs=["PL 70.15(3)"],
-            term=TermRange(min_value=0, max_value=364, unit=TermUnit.DAYS),
-        )
-
-
-def _resolve_primary_violation_disposition() -> Disposition:
-    """Resolve the primary disposition for a violation."""
-    row = reference.get_violation_table().get("allOffenders", {})
-    return Disposition(
-        type=DispositionType.DEFINITE,
-        label=f"Definite sentence up to {row.get('maxImprisonmentDays', 15)} days",
-        statute_refs=["PL 70.15(4)"],
-        term=TermRange(
-            min_value=0,
-            max_value=row.get("maxImprisonmentDays", 15),
-            unit=TermUnit.DAYS,
-        ),
-    )
+    def modifier(self, modifier_type: str) -> Optional[ModifierApplied]:
+        return next((m for m in self.modifiers_applied if m.modifier_type == modifier_type), None)
 
 
 # ---------------------------------------------------------------------------
-# Alternative dispositions from the dispositions table
-# ---------------------------------------------------------------------------
-
-
-def _generate_felony_alternatives(
-    classification: str,
-    is_vfo: bool,
-    case_facts: CaseFacts,
-) -> list[Disposition]:
-    """Generate alternative dispositions for a felony from the dispositions table.
-
-    Gated by classification per statute:
-      - Definite sentence (PL 70.00(4)): Class D/E felonies only, for a
-        non-second/persistent offender.
-      - Intermittent (PL 85.00(2)): Class D/E felonies or non-felonies only.
-      - Probation (PL 60.05(2)/65.00(1)(a)): NOT available for Class A felonies
-        (60.05(2) requires imprisonment per 70.00 for Class A).
-    """
-    disp_table = reference.get_dispositions_table()
-    fel = disp_table.get("felony", {})
-    alternatives: list[Disposition] = []
-
-    # VFOs: PL 70.02(2)(a) mandates a determinate sentence for class B/C VFOs
-    # ("must be a determinate sentence of imprisonment"), and PL 60.05(3)/(4)
-    # route class B/C VFOs to 70.02. The 60.01 alternatives (split/probation/CD/UD/
-    # definite/intermittent) are not "a determinate sentence of imprisonment"
-    # within the meaning of 70.02(2)(a), so none apply. The only statutory
-    # carve-outs are 60.05(6) (second/persistent offender routing) and
-    # 70.02(4)(b) (armed-felony plea mitigation) — both handled as ExceptionPaths.
-    if is_vfo:
-        return alternatives
-
-    # Class letter for gating
-    cls_letter = _class_key(classification)
-    is_class_de = cls_letter in ("ClassD", "ClassE")
-    is_class_a = cls_letter in ("ClassA_I", "ClassA_II")
-
-    # Definite sentence (PL 70.00(4)) — Class D/E only
-    definite = fel.get("definiteSentence", {})
-    if definite.get("eligible") and is_class_de:
-        alternatives.append(
-            Disposition(
-                type=DispositionType.DEFINITE,
-                label=f"Definite sentence up to {definite['maxMonths']} months",
-                statute_refs=[definite["statuteRef"]],
-                term=TermRange(
-                    min_value=0, max_value=definite["maxMonths"], unit=TermUnit.MONTHS
-                ),
-                conditions=definite.get("conditions"),
-            )
-        )
-
-    # Intermittent imprisonment (PL 85.00(2)) — Class D/E only
-    intermittent = fel.get("intermittentImprisonment", {})
-    if intermittent.get("eligible") and is_class_de:
-        alternatives.append(
-            Disposition(
-                type=DispositionType.INTERMITTENT,
-                label="Intermittent imprisonment for any term that could be imposed as a definite sentence",
-                statute_refs=[intermittent["statuteRef"]],
-                conditions=intermittent.get("conditions"),
-            )
-        )
-
-    # Split sentence (PL 60.01(2)(d)) — NOT for Class A felonies per PL 60.01(2)
-    split = fel.get("splitSentence", {})
-    if split.get("eligible") and not is_class_a:
-        imprisonment_months = split["imprisonmentMaxMonths"]
-        if case_facts.is_dwi:
-            imprisonment_months = split.get("dwiImprisonmentMaxMonths", 12)
-        alternatives.append(
-            Disposition(
-                type=DispositionType.SPLIT,
-                label=f"Split sentence — imprisonment up to {imprisonment_months} months + probation or conditional discharge",
-                statute_refs=[split["statuteRef"]],
-                split_imprisonment_max_months=imprisonment_months,
-                split_intermittent_max_months=split.get("intermittentMaxMonths"),
-                probation_years=split.get("probationYears", [3, 4, 5]),
-                conditional_discharge_years=split.get("conditionalDischargeYears"),
-            )
-        )
-
-    # Probation (PL 65.00) — NOT for Class A felonies per PL 60.05(2)
-    probation = fel.get("probation", {})
-    if probation.get("eligible") and not is_class_a:
-        alternatives.append(
-            Disposition(
-                type=DispositionType.PROBATION,
-                label=f"Probation for {', '.join(str(y) for y in probation['years'])} years",
-                statute_refs=[probation["statuteRef"]],
-                probation_years=probation["years"],  # full list of options
-                conditions=probation.get("conditions"),
-            )
-        )
-
-    # Conditional Discharge (PL 65.05) — NOT for Class A felonies per PL 60.01(2)
-    cd = fel.get("conditionalDischarge", {})
-    if cd.get("eligible") and not is_class_a:
-        alternatives.append(
-            Disposition(
-                type=DispositionType.CONDITIONAL_DISCHARGE,
-                label=f"Conditional discharge for {cd['years']} years",
-                statute_refs=[cd["statuteRef"]],
-                conditional_discharge_years=cd["years"],
-                record_statement_required=cd.get("recordStatementRequired", False),
-                conditions=cd.get("conditions"),
-            )
-        )
-
-    # Unconditional Discharge (PL 65.20) — NOT for Class A felonies per PL 60.01(3)
-    ud = fel.get("unconditionalDischarge", {})
-    if ud.get("eligible") and not is_class_a:
-        alternatives.append(
-            Disposition(
-                type=DispositionType.UNCONDITIONAL_DISCHARGE,
-                label="Unconditional discharge",
-                statute_refs=[ud["statuteRef"]],
-                record_statement_required=ud.get("recordStatementRequired", False),
-                conditions=ud.get("conditions"),
-            )
-        )
-
-    return alternatives
-
-
-def _generate_misdemeanor_alternatives(
-    classification: str,
-    case_facts: CaseFacts,
-) -> list[Disposition]:
-    """Generate alternative dispositions for a misdemeanor."""
-    disp_table = reference.get_dispositions_table()
-    misd = disp_table.get("misdemeanor", {})
-
-    # Pick the subclass
-    if classification == "ClassA_Misdemeanor":
-        sub = misd.get("classA", {})
-    elif classification == "ClassB_Misdemeanor":
-        sub = misd.get("classB", {})
-    else:
-        sub = misd.get("unclassified", {})
-
-    alternatives: list[Disposition] = []
-
-    # Intermittent
-    intermittent = sub.get("intermittentImprisonment", {})
-    if intermittent.get("eligible"):
-        alternatives.append(
-            Disposition(
-                type=DispositionType.INTERMITTENT,
-                label="Intermittent imprisonment for any term that could be imposed as a definite sentence",
-                statute_refs=[intermittent.get("statuteRef", "PL 85.00")],
-                conditions=intermittent.get("conditions"),
-            )
-        )
-
-    # Split sentence
-    split = sub.get("splitSentence", {})
-    if split.get("eligible"):
-        imprisonment_days = split.get("imprisonmentMaxDays")
-        imprisonment_months = split.get("imprisonmentMaxMonths")
-        if case_facts.is_dwi:
-            imprisonment_months = split.get("dwiImprisonmentMaxMonths", 12)
-            imprisonment_days = None
-        if imprisonment_days:
-            alternatives.append(
-                Disposition(
-                    type=DispositionType.SPLIT,
-                    label=f"Split sentence — imprisonment up to {imprisonment_days} days + probation or conditional discharge",
-                    statute_refs=[split["statuteRef"]],
-                    split_imprisonment_max_months=imprisonment_days / 30.0,
-                    probation_years=split.get("probationYears", [3]),
-                    conditional_discharge_years=split.get("conditionalDischargeYears"),
-                )
-            )
-        else:
-            alternatives.append(
-                Disposition(
-                    type=DispositionType.SPLIT,
-                    label=f"Split sentence — imprisonment up to {imprisonment_months} months + probation or conditional discharge",
-                    statute_refs=[split["statuteRef"]],
-                    split_imprisonment_max_months=imprisonment_months,
-                    probation_years=split.get("probationYears", [3]),
-                    conditional_discharge_years=split.get("conditionalDischargeYears"),
-                )
-            )
-
-    # Probation
-    probation = sub.get("probation", {})
-    if probation.get("eligible"):
-        alternatives.append(
-            Disposition(
-                type=DispositionType.PROBATION,
-                label=f"Probation for {', '.join(str(y) for y in probation['years'])} years",
-                statute_refs=[probation["statuteRef"]],
-                probation_years=probation["years"],
-                conditions=probation.get("conditions"),
-            )
-        )
-
-    # Conditional Discharge
-    cd = sub.get("conditionalDischarge", {})
-    if cd.get("eligible"):
-        alternatives.append(
-            Disposition(
-                type=DispositionType.CONDITIONAL_DISCHARGE,
-                label=f"Conditional discharge for {cd['years']} years",
-                statute_refs=[cd["statuteRef"]],
-                conditional_discharge_years=cd["years"],
-                record_statement_required=cd.get("recordStatementRequired", False),
-                conditions=cd.get("conditions"),
-            )
-        )
-
-    # Unconditional Discharge
-    ud = sub.get("unconditionalDischarge", {})
-    if ud.get("eligible"):
-        alternatives.append(
-            Disposition(
-                type=DispositionType.UNCONDITIONAL_DISCHARGE,
-                label="Unconditional discharge",
-                statute_refs=[ud.get("statuteRef", "PL 65.20(1)")],
-                record_statement_required=ud.get("recordStatementRequired", False),
-                conditions=ud.get("conditions"),
-            )
-        )
-
-    return alternatives
-
-
-def _generate_violation_alternatives() -> list[Disposition]:
-    """Generate alternative dispositions for a violation."""
-    disp_table = reference.get_dispositions_table()
-    viol = disp_table.get("violation", {})
-    alternatives: list[Disposition] = []
-
-    cd = viol.get("conditionalDischarge", {})
-    if cd.get("eligible"):
-        alternatives.append(
-            Disposition(
-                type=DispositionType.CONDITIONAL_DISCHARGE,
-                label=f"Conditional discharge for {cd['years']} year(s)",
-                statute_refs=[cd["statuteRef"]],
-                conditional_discharge_years=cd["years"],
-            )
-        )
-
-    ud = viol.get("unconditionalDischarge", {})
-    if ud.get("eligible"):
-        alternatives.append(
-            Disposition(
-                type=DispositionType.UNCONDITIONAL_DISCHARGE,
-                label="Unconditional discharge",
-                statute_refs=[ud.get("statuteRef", "PL 65.20(1)")],
-            )
-        )
-
-    return alternatives
-
-
-# ---------------------------------------------------------------------------
-# Conditional classification resolver (offense-intrinsic escalation)
+# Stage 1: classify
 # ---------------------------------------------------------------------------
 
 
@@ -910,267 +112,275 @@ def _resolve_conditional_classification(
     return conditional.get("fallback", "Violation")
 
 
+def _classify(ctx: SentencingContext) -> None:
+    facts = ctx.case_facts
+    ctx.classification = ctx.offense["classification"]
+    ctx.vfo = is_vfo(ctx.section, ctx.classification)
+    ctx.note("classify", f"Offense classification {ctx.classification}")
+
+    if facts.is_attempt and facts.attempt_of_section:
+        target = reference.get_offense(facts.attempt_of_section)
+        target_classification = target["classification"] if target else "Unknown"
+        ctx.classification = resolve_attempt_classification(
+            facts.attempt_of_section, target_classification, facts.subdivision
+        )
+        ctx.vfo, _ = resolve_vfo_of_attempt(facts.attempt_of_section, target_classification)
+        ctx.note("classify", f"Attempt of §{facts.attempt_of_section} → {ctx.classification}", "PL 110.05")
+
+    # Offense-intrinsic escalation, e.g. §130.86 luring a child: E→C/D by
+    # intended offense class; §225.90: A misdemeanor→E felony with a prior.
+    conditional = ctx.offense.get("conditionalClassification")
+    if conditional:
+        ctx.classification = _resolve_conditional_classification(conditional, facts)
+        ctx.vfo = is_vfo(ctx.section, ctx.classification)
+        ctx.note("classify", f"Conditional classification → {ctx.classification}")
+
+
 # ---------------------------------------------------------------------------
-# Modifier bumps: SMF (§130.91), hate crime (§485.10), terrorism (§490.25)
+# Stage 2: classification modifiers (data-driven)
 # ---------------------------------------------------------------------------
-# Applied in order: SMF → hate crime → terrorism. Each modifier sees the
-# classification resulting from the previous one. Each returns a tuple:
-#   (new_classification, vfo_override, branch, applied)
-# vfo_override: None = keep existing vfo; True/False = set vfo to this value.
-
-# --- Hate crime upgrade ladder (§485.10(2)) ---
-# One-tier escalation for misdemeanors and Class C/D/E felonies. Violent
-# variants stay violent; non-violent stay non-violent. VFO status is
-# re-derived via is_vfo() after the bump (statute does not "deem" non-VFO
-# hate crimes as VFOs — only already-VFO underlying offenses per §485.10(1)).
-_HATECRIME_UPGRADE_TABLE = {
-    "ClassA_Misdemeanor": "ClassE_Felony",
-    "ClassB_Misdemeanor": "ClassA_Misdemeanor",
-    "Unclassified_Misdemeanor": "ClassA_Misdemeanor",
-    "ClassE_Felony": "ClassD_Felony",
-    "ClassD_Felony": "ClassC_Felony",
-    "ClassC_Felony": "ClassB_Felony",
-    "ClassE_Violent_Felony": "ClassD_Violent_Felony",
-    "ClassD_Violent_Felony": "ClassC_Violent_Felony",
-    "ClassC_Violent_Felony": "ClassB_Violent_Felony",
-}
-
-_SIMPLE_BUMP_CLASSIFICATIONS = set(_HATECRIME_UPGRADE_TABLE.keys())
-
-# --- SMF violent redesignation (§130.91) ---
-# Maps non-violent felony classes to their violent variants. No tier shift —
-# only redesignates as a violent felony, routing through VFO tables.
-# NOTE: statutory basis for "violent redesignation" not explicit in §130.91
-# text itself; derived from DB classification_resolution (unverified —
-# flagged for legal review per TODO.md).
-_SMF_VIOLENT_REDESIGNATION = {
-    "ClassB_Felony": "ClassB_Violent_Felony",
-    "ClassC_Felony": "ClassC_Violent_Felony",
-    "ClassD_Felony": "ClassD_Violent_Felony",
-    "ClassE_Felony": "ClassE_Violent_Felony",
-}
-
-# --- Terrorism upgrade ladder (§490.25(2)(b)) ---
-# Same one-tier escalation as hate crime, but terrorism explicitly "deems"
-# the offense a VFO per §490.25(2)(a). So vfo is always set to True for
-# C/D/E bumped felonies.
-_TERRORISM_UPGRADE_TABLE = {
-    "ClassE_Felony": "ClassD_Violent_Felony",
-    "ClassD_Felony": "ClassC_Violent_Felony",
-    "ClassC_Felony": "ClassB_Violent_Felony",
-    "ClassE_Violent_Felony": "ClassD_Violent_Felony",
-    "ClassD_Violent_Felony": "ClassC_Violent_Felony",
-    "ClassC_Violent_Felony": "ClassB_Violent_Felony",
-}
 
 
-def _apply_smf_bump(
-    classification: str,
-    section: str,
-    case_facts: CaseFacts,
-) -> tuple[str, bool | None, str | None, bool]:
-    """Apply the SMF bump (§130.91) — violent redesignation only, no tier shift.
+def _apply_classification_modifiers(ctx: SentencingContext) -> None:
+    """Apply the classificationModifiers ladders in their declared order.
 
-    If the offense is SMF-eligible and sexually_motivated, a non-violent
-    felony is redesignated to its violent variant (routes through VFO tables).
-    Already-violent felonies are unchanged but the modifier is still recorded.
+    Each modifier sees the classification produced by the previous one. A
+    modifier fires when its case fact is set, the section is on its
+    eligibility list (and the offense is a felony, if felonyOnly), and one of
+    its branches maps the current classification.
     """
-    if not case_facts.sexually_motivated:
-        return classification, None, None, False
-    if not is_smf_eligible(section, classification):
-        return classification, None, None, False
+    config = reference.get_classification_modifiers()
+    for modifier_type in config["order"]:
+        mod = config[modifier_type]
+        if not getattr(ctx.case_facts, mod["factField"]):
+            continue
+        if not reference.is_listed(mod["eligibilityList"], ctx.section):
+            continue
+        if mod.get("felonyOnly") and not is_felony(ctx.classification):
+            continue
+        branch = next((b for b in mod["branches"] if ctx.classification in b["map"]), None)
+        if branch is None:
+            continue
 
-    if classification in _SMF_VIOLENT_REDESIGNATION:
-        return _SMF_VIOLENT_REDESIGNATION[classification], True, "violent_redesignation", True
-    if classification in ("ClassB_Violent_Felony", "ClassC_Violent_Felony",
-                         "ClassD_Violent_Felony", "ClassE_Violent_Felony"):
-        return classification, None, "violent_redesignation", True
-    return classification, None, None, False
+        before = ctx.classification
+        ctx.classification = branch["map"][before]
+        effect = branch["vfo"]
+        if effect == "deem":
+            ctx.vfo = True
+        elif effect == "undeem":
+            ctx.vfo = False
+        elif effect == "derive":
+            ctx.vfo = is_vfo(ctx.section, ctx.classification)
+
+        ctx.modifiers_applied.append(ModifierApplied(
+            modifier_type=modifier_type,
+            branch=branch["name"],
+            base_classification=before,
+            resulting_classification=ctx.classification,
+        ))
+        ctx.note("modifier", f"{modifier_type} ({branch['name']}): {before} → {ctx.classification}", mod["statute"])
 
 
-def _apply_hatecrime_bump(
-    classification: str,
-    section: str,
-    case_facts: CaseFacts,
-) -> tuple[str, bool | None, str | None, bool]:
-    """Apply the hate crime bump (PL 485.10).
+# ---------------------------------------------------------------------------
+# Stages 3-4: track, offender status, dispositions
+# ---------------------------------------------------------------------------
 
-    Returns (new_classification, vfo_override, branch, applied).
-    - Simple branch (misdemeanorOrClassCDE): one-tier upgrade, vfo re-derived.
-    - ClassB branch: no reclassification, floors applied post-disposition.
-    - ClassA_I branch: no reclassification, 20-year min applied post-disposition.
+
+def _sentence_on_track(ctx: SentencingContext) -> None:
+    ctx.track = select_track(ctx)
+    ctx.note("track", f"Sentencing track: {ctx.track.name}")
+
+    ctx.status = ctx.track.derive_status(ctx)
+    ctx.note(
+        "offender_status",
+        f"{ctx.track.status_label(ctx.status)} (predicate felonies: "
+        f"{ctx.prior.predicate_felonies}, of which violent: {ctx.prior.predicate_vfos})",
+    )
+
+    primary, prs = ctx.track.primary(ctx, ctx.status)
+    if prs:
+        primary.prs = prs
+    ctx.dispositions = [primary, *ctx.track.alternatives(ctx)]
+
+
+# ---------------------------------------------------------------------------
+# Stage 5: post-disposition adjustments
+# ---------------------------------------------------------------------------
+# Each adjuster edits ctx.dispositions in place and returns a trace detail if
+# it changed anything. They run in ADJUSTMENTS order.
+
+
+def _hate_floor_statute(ctx: SentencingContext) -> Optional[str]:
+    """Which 485.10(3) floor applies, keyed by the governing Article 70 section.
+
+    LEGACY-PARITY: keyed on the offense's VFO flag and the raw predicate
+    counts, as the old status selector did, not on the derived status.
     """
-    if not case_facts.hate_crime_motivated:
-        return classification, None, None, False
-    if not is_hatecrime_eligible(section):
-        return classification, None, None, False
-
-    if classification in _SIMPLE_BUMP_CLASSIFICATIONS:
-        upgraded = _HATECRIME_UPGRADE_TABLE[classification]
-        return upgraded, None, "misdemeanorOrClassCDE", True
-
-    if classification in ("ClassB_Felony", "ClassB_Violent_Felony"):
-        return classification, None, "ClassB", True
-
-    if classification == "ClassA_I_Felony":
-        return classification, None, "ClassA_I", True
-
-    return classification, None, None, False
+    prior = ctx.prior
+    if ctx.vfo and prior.predicate_felonies == 0:
+        return "70.02"
+    if ctx.vfo and prior.predicate_vfos == 1:
+        return "70.04"
+    if not ctx.vfo and prior.predicate_felonies == 0:
+        return "70.00"
+    if not ctx.vfo and prior.predicate_felonies == 1 and prior.predicate_vfos == 0:
+        return "70.06"
+    # 70.05 (juvenile offender): §485.10(3)(d) sets a 4-year max floor — not yet applied.
+    # 70.08: §485.10(3) lists no floor; the 70.08 minimums already exceed them.
+    return None
 
 
-def _apply_terrorism_bump(
-    classification: str,
-    section: str,
-    case_facts: CaseFacts,
-) -> tuple[str, bool | None, str | None, bool]:
-    """Apply the terrorism bump (PL 490.25).
+def _raise_primary_min(ctx: SentencingContext, floor: float) -> None:
+    primary = ctx.dispositions[0]
+    if primary.term:
+        primary.term = TermRange(
+            min_value=max(primary.term.min_value, floor),
+            max_value=primary.term.max_value,
+            unit=primary.term.unit,
+        )
 
-    Returns (new_classification, vfo_override, branch, applied).
-    - Class C/D/E felony: one tier higher + deemed VFO (vfo=True).
-    - Class B felony: deemed Class A-I felony (sentenced per 70.00).
-    - Class A-I felony: life without parole (no reclassification; disposition
-      override handled post-computation — TODO).
+
+def _adjust_hate_crime_floors(ctx: SentencingContext) -> Optional[str]:
+    """§485.10(3)/(4) minimum floors for the ClassB and ClassA_I hate-crime branches."""
+    hate = ctx.modifier("hate_crime")
+    if not hate or hate.branch not in ("ClassB", "ClassA_I") or not ctx.dispositions:
+        return None
+    bump_table = reference.get_hatecrime_bump_table()
+
+    if hate.branch == "ClassB":
+        statute = _hate_floor_statute(ctx)
+        floor = bump_table.get("ClassB", {}).get("floors", {}).get(statute or "", {})
+        value = floor.get("termMin", floor.get("maxTermMin"))
+        if value is None:
+            return None
+        _raise_primary_min(ctx, value)
+        return f"Hate crime Class B floor ({statute}): at least {value} years"
+
+    min_period = bump_table.get("ClassA_I", {}).get("minPeriod", 20)
+    _raise_primary_min(ctx, min_period)
+    return f"Hate crime Class A-I minimum period: at least {min_period} years"
+
+
+def _adjust_terrorism_lwop(ctx: SentencingContext) -> Optional[str]:
+    """§490.25(2)(d): terrorism with a Class A-I specified offense → life
+    without parole, replacing every other disposition."""
+    terrorism = ctx.modifier("terrorism")
+    if not terrorism or terrorism.branch != "life_without_parole":
+        return None
+    ctx.dispositions = [Disposition(
+        type=DispositionType.LIFE_WITHOUT_PAROLE,
+        label="Life imprisonment without parole",
+        statute_refs=["PL 490.25(2)(d)"],
+        conditions="Terrorism with Class A-I specified offense — sentence shall be life without parole",
+    )]
+    return "Terrorism Class A-I: life without parole"
+
+
+def _adjust_offense_overrides(ctx: SentencingContext) -> Optional[str]:
+    """Offense-specific overrides (PL 70.00(3)(a)), e.g. §125.27 20-25yr
+    minimum, §125.26 life without parole; attempt-specific overrides
+    (70.00(3)(a)(i)(C)) are keyed "attempt_<section>". Terrorism LWOP wins."""
+    terrorism = ctx.modifier("terrorism")
+    if terrorism and terrorism.branch == "life_without_parole":
+        return None
+    facts = ctx.case_facts
+    overrides = reference.get_offense_overrides()
+    override = overrides.get(ctx.section)
+    if not override and facts.is_attempt and facts.attempt_of_section:
+        override = overrides.get(f"attempt_{facts.attempt_of_section}")
+    if not override:
+        return None
+
+    subd_override = None
+    if facts.subdivision and "subdivisions" in override:
+        subd_override = override["subdivisions"].get(facts.subdivision)
+    effective = subd_override or override
+
+    if effective.get("lifeWithoutParole"):
+        ctx.dispositions = [Disposition(
+            type=DispositionType.LIFE_WITHOUT_PAROLE,
+            label="Life imprisonment without parole",
+            statute_refs=[effective.get("_ref", "PL 70.00(3)(a)")],
+            conditions=f"Offense-specific override for §{ctx.section}" + (f" subd {facts.subdivision}" if facts.subdivision else ""),
+        )]
+        return f"Offense-specific override for §{ctx.section}: life without parole"
+    if "minYears" in effective and ctx.dispositions:
+        min_override = effective["minYears"]
+        primary = ctx.dispositions[0]
+        if primary.term:
+            primary.term = TermRange(
+                min_value=max(primary.term.min_value, min_override[0]),
+                max_value=max(primary.term.max_value, min_override[1]),
+                unit=primary.term.unit,
+            )
+        return f"Offense-specific override for §{ctx.section}: minimum {min_override[0]}–{min_override[1]} years"
+    return None
+
+
+def _adjust_for_hire(ctx: SentencingContext) -> Optional[str]:
+    """PL 60.07(1): victim operating a for-hire vehicle and a 60.07(2)(a)
+    specified offense → the minimum term is 3-5 years greater; max unchanged.
+
+    A minimum-term adjustment, not a classification modifier, so it stacks
+    with the hate-crime/terrorism outcomes. We represent the enhanced floor
+    (old min + 3). The court's discretion to decline is an ExceptionPath.
     """
-    if not case_facts.terrorism_motivated:
-        return classification, None, None, False
-    if not is_terrorism_eligible(section):
-        return classification, None, None, False
-    if not is_felony(classification):
-        return classification, None, None, False
-
-    if classification in _TERRORISM_UPGRADE_TABLE:
-        return _TERRORISM_UPGRADE_TABLE[classification], True, "ClassCDE", True
-
-    if classification in ("ClassB_Felony", "ClassB_Violent_Felony"):
-        return "ClassA_I_Felony", False, "ClassB_to_A_I", True
-
-    if classification == "ClassA_I_Felony":
-        return classification, None, "life_without_parole", True
-
-    return classification, None, None, False
-
-
-def _apply_for_hire_enhancement(
-    dispositions: list[Disposition],
-    case_facts: CaseFacts,
-    section: str,
-) -> bool:
-    """Apply the for-hire vehicle enhancement (PL 60.07(1)) to the primary
-    disposition in-place. Called post-disposition.
-
-    PL 60.07(1): when the victim was operating a for-hire vehicle and the
-    offense is a "specified offense" per 60.07(2)(a), the minimum term of
-    an indeterminate sentence or minimum determinate sentence shall be
-    not less than 3 nor more than 5 years greater than the minimum term
-    otherwise required. The maximum term is unchanged.
-
-    This is a minimum-term floor adjustment, NOT a classification modifier.
-    It stacks with hate-crime/terrorism bumps because it operates on the
-    final post-modifier minimum.
-    """
-    if not case_facts.victim_is_for_hire_operator:
-        return False
+    facts = ctx.case_facts
+    if not facts.victim_is_for_hire_operator:
+        return None
     if not is_for_hire_eligible(
-        section,
-        is_attempt=case_facts.is_attempt,
-        attempt_of_section=case_facts.attempt_of_section,
+        ctx.section, is_attempt=facts.is_attempt, attempt_of_section=facts.attempt_of_section
     ):
-        return False
-    if not dispositions:
-        return False
-
-    primary = dispositions[0]
+        return None
+    if not ctx.dispositions:
+        return None
+    primary = ctx.dispositions[0]
     if not primary.term or primary.term.unit != TermUnit.YEARS:
-        return False
+        return None
 
-    # Add 3 years to the minimum (the floor of the 3-5 year enhancement range).
-    # The court has discretion to add up to 5 years; we represent the enhanced
-    # floor (old_min + 3) as the new minimum. The max stays unchanged.
-    old_min = primary.term.min_value
     primary.term = TermRange(
-        min_value=old_min + 3,
+        min_value=primary.term.min_value + 3,
         max_value=primary.term.max_value,
         unit=primary.term.unit,
     )
     primary.label = f"{primary.label} (for-hire enhancement applied: min +3-5 yr per PL 60.07)"
     primary.statute_refs = list(primary.statute_refs) + ["PL 60.07"]
-    return True
+    return "For-hire vehicle enhancement: minimum +3 years"
 
 
-def _apply_hatecrime_floors(
-    dispositions: list[Disposition],
-    vfo: bool,
-    prior_status: PriorRecordStatus,
-    branch: str,
-) -> None:
-    """Apply hate crime minimum floors (§485.10(3)/(4)) to the primary
-    disposition in-place. Called post-disposition when the ClassB or ClassA_I
-    hate crime branch fired.
-    """
-    if not dispositions:
-        return
-    primary = dispositions[0]
-    bump_table = reference.get_hatecrime_bump_table()
-
-    if branch == "ClassB":
-        floors = bump_table.get("ClassB", {}).get("floors", {})
-        # Determine which sentencing statute applied based on vfo + prior status
-        if vfo and prior_status == PriorRecordStatus.FIRST_OFFENDER:
-            floor = floors.get("70.02", {})
-            if "termMin" in floor and primary.term:
-                primary.term = TermRange(
-                    min_value=max(primary.term.min_value, floor["termMin"]),
-                    max_value=primary.term.max_value,
-                    unit=primary.term.unit,
-                )
-        elif vfo and prior_status == PriorRecordStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04:
-            floor = floors.get("70.04", {})
-            if "termMin" in floor and primary.term:
-                primary.term = TermRange(
-                    min_value=max(primary.term.min_value, floor["termMin"]),
-                    max_value=primary.term.max_value,
-                    unit=primary.term.unit,
-                )
-        elif not vfo and prior_status == PriorRecordStatus.FIRST_OFFENDER:
-            floor = floors.get("70.00", {})
-            if "maxTermMin" in floor and primary.term:
-                primary.term = TermRange(
-                    min_value=max(primary.term.min_value, floor["maxTermMin"]),
-                    max_value=primary.term.max_value,
-                    unit=primary.term.unit,
-                )
-        elif not vfo and prior_status == PriorRecordStatus.SECOND_FELONY_OFFENDER_70_06:
-            floor = floors.get("70.06", {})
-            if "maxTermMin" in floor and primary.term:
-                primary.term = TermRange(
-                    min_value=max(primary.term.min_value, floor["maxTermMin"]),
-                    max_value=primary.term.max_value,
-                    unit=primary.term.unit,
-                )
-        # 70.05 (juvenile offender): §485.10(3)(d) sets a 4-year max floor,
-        # but the codebase does not yet model the juvenile offender sentencing
-        # track (no JUVENILE age category, no 70.05 routing in tables). Blocked
-        # on that larger work — see TODO.md.
-        # 70.08 (persistent violent felony offender): §485.10(3) does NOT list
-        # a floor for 70.08. The existing 70.08 minimum (20-25yr for Class B)
-        # already exceeds all hate crime floor values, so no floor is needed.
-
-    elif branch == "ClassA_I":
-        min_period = bump_table.get("ClassA_I", {}).get("minPeriod", 20)
-        if primary.term:
-            primary.term = TermRange(
-                min_value=max(primary.term.min_value, min_period),
-                max_value=primary.term.max_value,
-                unit=primary.term.unit,
-            )
+# Order matters: floors before LWOP replacement, overrides after both, and
+# for-hire last because it adds to the final minimum.
+ADJUSTMENTS: list[tuple[Callable[[SentencingContext], Optional[str]], str]] = [
+    (_adjust_hate_crime_floors, "PL 485.10(3)-(4)"),
+    (_adjust_terrorism_lwop, "PL 490.25(2)(d)"),
+    (_adjust_offense_overrides, "PL 70.00(3)(a)"),
+    (_adjust_for_hire, "PL 60.07"),
+]
 
 
-
+def _apply_adjustments(ctx: SentencingContext) -> None:
+    for adjust, statute in ADJUSTMENTS:
+        detail = adjust(ctx)
+        if detail:
+            ctx.note("adjustment", detail, statute)
 
 
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
+
+
+def _estimated_jail_term_days(dispositions: list[Disposition]) -> Optional[float]:
+    """Jail term used for the surcharge-summons collateral (last term wins)."""
+    jail_term_days = None
+    for d in dispositions:
+        if d.term and d.term.unit == TermUnit.DAYS:
+            jail_term_days = d.term.max_value
+        elif d.term and d.term.unit == TermUnit.MONTHS:
+            jail_term_days = d.term.max_value * 30
+        elif d.term and d.term.unit == TermUnit.YEARS:
+            jail_term_days = d.term.max_value * 365
+    return jail_term_days
 
 
 def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
@@ -1182,250 +392,38 @@ def resolve(section: str, case_facts: CaseFacts) -> SentencingOutput:
 
     Returns:
         SentencingOutput with all available dispositions, exceptions,
-        financial obligations, and collateral requirements.
+        financial obligations, collateral requirements, and a decision trace.
     """
     offense = reference.get_offense(section)
     if offense is None:
         raise ValueError(f"Unknown offense section: {section}")
 
-    classification = offense["classification"]
-    offense_name = offense.get("name", section)
-
-    # Handle attempts — resolve the effective classification
-    if case_facts.is_attempt and case_facts.attempt_of_section:
-        target_offense = reference.get_offense(case_facts.attempt_of_section)
-        target_classification = (
-            target_offense["classification"] if target_offense else "Unknown"
-        )
-        effective_classification = resolve_attempt_classification(
-            case_facts.attempt_of_section,
-            target_classification,
-            case_facts.subdivision,
-        )
-        vfo, _ = resolve_vfo_of_attempt(
-            case_facts.attempt_of_section, target_classification
-        )
-    else:
-        effective_classification = classification
-        vfo = is_vfo(section, effective_classification)
-
-    # Handle conditional classification (offense-intrinsic escalation)
-    # e.g. §130.86 luring a child: E→C/D based on intended offense class
-    # e.g. §225.90 gaming manipulation: A misdemeanor→E felony if prior within 5 years
-    conditional = offense.get("conditionalClassification")
-    if conditional:
-        effective_classification = _resolve_conditional_classification(
-            conditional, case_facts
-        )
-        vfo = is_vfo(section, effective_classification)
-
-    # Apply modifier bumps in order: SMF → hate crime → terrorism.
-    # Each modifier sees the classification resulting from the previous one.
-    base_classification = effective_classification
-    modifiers_applied: list[ModifierApplied] = []
-    any_modifier_fired = False
-
-    for mod_type, bump_fn in (
-        ("sexually_motivated_felony", _apply_smf_bump),
-        ("hate_crime", _apply_hatecrime_bump),
-        ("terrorism", _apply_terrorism_bump),
-    ):
-        pre_class = effective_classification
-        effective_classification, vfo_override, branch, applied = bump_fn(
-            effective_classification, section, case_facts
-        )
-        if applied:
-            any_modifier_fired = True
-            if vfo_override is not None:
-                vfo = vfo_override
-            elif branch == "misdemeanorOrClassCDE":
-                vfo = is_vfo(section, effective_classification)
-            modifiers_applied.append(ModifierApplied(
-                modifier_type=mod_type,
-                branch=branch,
-                base_classification=pre_class,
-                resulting_classification=effective_classification,
-            ))
-
-    if not any_modifier_fired:
-        base_classification = None
-
-    # Primary disposition + PRS
-    dispositions: list[Disposition] = []
-
-    # Juvenile offender routing (PL 70.05): juvenile offenders get indeterminate
-    # sentences with reduced max terms, regardless of VFO/drug/sex offense status.
-    # PL 70.05 only covers Class A-I (murder/arson/kidnap), B, C, D felonies.
-    # Class E/A-II and misdemeanors fall through to standard sentencing.
-    if (
-        is_felony(effective_classification)
-        and case_facts.defendant_age_category == AgeCategory.JUVENILE_OFFENDER
-        and _class_key(effective_classification) in ("ClassA_I", "ClassB", "ClassC", "ClassD")
-    ):
-        primary = _resolve_juvenile_offender_disposition(
-            effective_classification, section
-        )
-        dispositions.append(primary)
-        dispositions.extend(
-            _generate_felony_alternatives(effective_classification, vfo, case_facts)
-        )
-    # Drug felony routing (PL 70.70/70.71): Article 220/222 non-VFO felonies
-    # get determinate sentences with distinct ranges. VFO drug offenses stay
-    # on the standard 70.02 path per 70.70(4).
-    elif (
-        is_felony(effective_classification)
-        and not vfo
-        and _is_drug_offense(offense)
-    ):
-        primary, prs = _resolve_drug_felony_disposition(
-            effective_classification, section, _legacy_status(case_facts.prior_record)
-        )
-        if prs:
-            primary.prs = prs
-        dispositions.append(primary)
-        dispositions.extend(
-            _generate_felony_alternatives(effective_classification, vfo, case_facts)
-        )
-    # Sex offense routing (PL 70.80/60.13): Article 130 + specific 230/255
-    # felonies get determinate sentences with sex-offense PRS per 70.45(2-a).
-    elif (
-        is_felony(effective_classification)
-        and _is_sex_offense(offense, section)
-        and effective_classification not in ("ClassA_I_Felony", "ClassA_II_Felony")
-    ):
-        primary, prs = _resolve_sex_offense_felony_disposition(
-            effective_classification, section, _legacy_status(case_facts.prior_record)
-        )
-        if prs:
-            primary.prs = prs
-        dispositions.append(primary)
-        dispositions.extend(
-            _generate_felony_alternatives(effective_classification, True, case_facts)
-        )
-    elif is_felony(effective_classification):
-        primary, prs = _resolve_primary_felony_disposition(
-            effective_classification, section, vfo, _legacy_status(case_facts.prior_record)
-        )
-        if prs:
-            primary.prs = prs
-        dispositions.append(primary)
-
-        # Add alternatives
-        dispositions.extend(
-            _generate_felony_alternatives(
-                effective_classification, vfo, case_facts
-            )
-        )
-    elif is_misdemeanor(effective_classification):
-        primary = _resolve_primary_misdemeanor_disposition(effective_classification)
-        dispositions.append(primary)
-        dispositions.extend(
-            _generate_misdemeanor_alternatives(effective_classification, case_facts)
-        )
-    elif is_violation(effective_classification):
-        primary = _resolve_primary_violation_disposition()
-        dispositions.append(primary)
-        dispositions.extend(_generate_violation_alternatives())
-    else:
-        raise ValueError(f"Unknown classification: {effective_classification}")
-
-    # Apply hate crime minimum floors (§485.10(3)/(4)) post-disposition
-    for mod in modifiers_applied:
-        if mod.modifier_type == "hate_crime" and mod.branch in ("ClassB", "ClassA_I"):
-            _apply_hatecrime_floors(
-                dispositions, vfo, _legacy_status(case_facts.prior_record), mod.branch
-            )
-
-    # Terrorism A-I → life without parole (§490.25(2)(d)) — overrides all
-    # dispositions: the sentence is flat life imprisonment without parole.
-    for mod in modifiers_applied:
-        if mod.modifier_type == "terrorism" and mod.branch == "life_without_parole":
-            lwop = Disposition(
-                type=DispositionType.LIFE_WITHOUT_PAROLE,
-                label="Life imprisonment without parole",
-                statute_refs=["PL 490.25(2)(d)"],
-                conditions="Terrorism with Class A-I specified offense — sentence shall be life without parole",
-            )
-            dispositions = [lwop]
-            break
-
-    # Offense-specific sentencing overrides (PL 70.00(3)(a)) — e.g. §125.27
-    # murder 1st has a 20-25yr minimum (vs standard 15-25yr); §125.26
-    # aggravated murder gets life without parole. Only applies to Class A-I
-    # felonies without a terrorism override (terrorism takes precedence).
-    offense_overrides = reference.get_offense_overrides()
-    override = offense_overrides.get(section)
-    has_terrorism_lwop = any(
-        m.modifier_type == "terrorism" and m.branch == "life_without_parole"
-        for m in modifiers_applied
-    )
-    # Attempt-specific overrides (PL 70.00(3)(a)(i)(C)): attempted murder 1st
-    # and attempted aggravated murder get 20-40yr min. Keyed as "attempt_<section>".
-    if not override and case_facts.is_attempt and case_facts.attempt_of_section:
-        override = offense_overrides.get(f"attempt_{case_facts.attempt_of_section}")
-    if override and not has_terrorism_lwop:
-        # Check subdivision-level override first
-        subd_override = None
-        if case_facts.subdivision and "subdivisions" in override:
-            subd_override = override["subdivisions"].get(case_facts.subdivision)
-        effective_override = subd_override or override
-
-        if effective_override.get("lifeWithoutParole"):
-            dispositions = [Disposition(
-                type=DispositionType.LIFE_WITHOUT_PAROLE,
-                label="Life imprisonment without parole",
-                statute_refs=[effective_override.get("_ref", "PL 70.00(3)(a)")],
-                conditions=f"Offense-specific override for §{section}" + (f" subd {case_facts.subdivision}" if case_facts.subdivision else ""),
-            )]
-        elif "minYears" in effective_override and dispositions:
-            min_override = effective_override["minYears"]
-            primary = dispositions[0]
-            if primary.term:
-                primary.term = TermRange(
-                    min_value=max(primary.term.min_value, min_override[0]),
-                    max_value=max(primary.term.max_value, min_override[1]),
-                    unit=primary.term.unit,
-                )
-
-    # Apply for-hire vehicle enhancement (PL 60.07) post-disposition —
-    # adds 3-5 years to the minimum term of the primary disposition.
-    for_hire_applied = _apply_for_hire_enhancement(dispositions, case_facts, section)
-
-    # Exceptions
-    exceptions = generate_all_exceptions(
-        effective_classification, vfo, case_facts
-    )
-
-    # Financial obligations
-    financial = generate_all_financial(
-        effective_classification,
-        victim_seeking_restitution=case_facts.victim_seeking_restitution,
-        section=section,
-    )
-
-    # Collateral requirements (estimate jail term for surcharge summons)
-    jail_term_days = None
-    for d in dispositions:
-        if d.term and d.term.unit == TermUnit.DAYS:
-            jail_term_days = d.term.max_value
-        elif d.term and d.term.unit == TermUnit.MONTHS:
-            jail_term_days = d.term.max_value * 30
-        elif d.term and d.term.unit == TermUnit.YEARS:
-            jail_term_days = d.term.max_value * 365
-
-    collateral = generate_collateral_requirements(
-        effective_classification, jail_term_days=jail_term_days
-    )
+    ctx = SentencingContext(section=section, offense=offense, case_facts=case_facts)
+    _classify(ctx)
+    base_classification = ctx.classification
+    _apply_classification_modifiers(ctx)
+    _sentence_on_track(ctx)
+    _apply_adjustments(ctx)
 
     return SentencingOutput(
         section=section,
-        offense_name=offense_name,
-        classification=effective_classification,
-        is_vfo=vfo,
-        available_dispositions=dispositions,
-        exception_paths=exceptions,
-        financial_obligations=financial,
-        collateral_requirements=collateral,
-        base_classification=base_classification,
-        modifiers_applied=modifiers_applied,
+        offense_name=offense.get("name", section),
+        classification=ctx.classification,
+        is_vfo=ctx.vfo,
+        available_dispositions=ctx.dispositions,
+        exception_paths=generate_all_exceptions(ctx.classification, ctx.vfo, case_facts),
+        financial_obligations=generate_all_financial(
+            ctx.classification,
+            victim_seeking_restitution=case_facts.victim_seeking_restitution,
+            section=section,
+        ),
+        collateral_requirements=generate_collateral_requirements(
+            ctx.classification, jail_term_days=_estimated_jail_term_days(ctx.dispositions)
+        ),
+        base_classification=base_classification if ctx.modifiers_applied else None,
+        modifiers_applied=ctx.modifiers_applied,
+        sentencing_track=ctx.track.name,
+        offender_status=ctx.status,
+        offender_status_label=ctx.track.status_label(ctx.status),
+        trace=ctx.trace,
     )

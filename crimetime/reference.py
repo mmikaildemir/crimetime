@@ -178,14 +178,6 @@ def get_misdemeanor_table() -> dict[str, Any]:
     return _load_sentencing().get("misdemeanor", {})
 
 
-def get_nonviolent_felony_table() -> dict[str, Any]:
-    return _load_sentencing().get("nonViolentFelony", {})
-
-
-def get_violent_felony_table() -> dict[str, Any]:
-    return _load_sentencing().get("violentFelony", {})
-
-
 def get_hatecrime_bump_table() -> dict[str, Any]:
     return _load_sentencing().get("hateCrimeBump", {})
 
@@ -216,16 +208,23 @@ def get_offense_overrides() -> dict[str, Any]:
     return _load_sentencing().get("offenseOverrides", {})
 
 
-def get_drug_felony_table() -> dict[str, Any]:
-    """Return the drug felony sentencing tables (PL 70.70 / 70.71)."""
-    return _load_sentencing().get("drugFelony", {})
+def get_status_table(track_table: str, status: str) -> Optional[dict[str, Any]]:
+    """Return one offender-status block of a sentencing-track table.
+
+    Track tables (nonViolentFelony, violentFelony, drugFelony,
+    sexOffenseFelony, juvenileOffender) are keyed by OffenderStatus value
+    under "statuses"; each block is self-describing: label, statute,
+    sentenceType, optional prsRef, and the per-class "rows" (a row may carry
+    its own "statute" that overrides the block's).
+    """
+    return _load_sentencing().get(track_table, {}).get("statuses", {}).get(status)
 
 
-def get_sex_offense_felony_table() -> dict[str, Any]:
-    """Return the felony sex offense sentencing tables (PL 70.80)."""
-    return _load_sentencing().get("sexOffenseFelony", {})
+def get_classification_modifiers() -> dict[str, Any]:
+    """Return the classification-modifier ladders (SMF, hate crime, terrorism)."""
+    return _load_sentencing().get("classificationModifiers", {})
 
 
-def get_juvenile_offender_table() -> dict[str, Any]:
-    """Return the juvenile offender sentencing table (PL 70.05)."""
-    return _load_sentencing().get("juvenileOffender", {})
+def is_listed(list_name: str, section: str) -> bool:
+    """True if section is in the named eligibility list (e.g. 'SMF_LIST')."""
+    return section in _load_lists()["lists"].get(list_name, {}).get("sections", [])
