@@ -631,6 +631,33 @@ document.querySelectorAll('.seg').forEach(b => {
   });
 });
 
+// "Clear page": back to the state the page loads in (engine stays loaded).
+const EMPTY_CASE_FACTS = $('#caseFacts').innerHTML;
+
+function clearPage() {
+  Object.assign(state, {
+    selectedSection: null,
+    offenseDetail: null,
+    lastResult: null,
+    lastRequest: null,
+    lastError: null,
+    view: 'structured',
+  });
+  history.replaceState(null, '', location.pathname + location.search);
+  $('#search').value = '';
+  renderOffenseList('');
+  $('#offenseList').scrollTop = 0;
+  $('#offenseBadge').innerHTML = '';
+  $('#caseFacts').innerHTML = EMPTY_CASE_FACTS;
+  document.querySelectorAll('.seg').forEach(x => x.classList.toggle('active', x.dataset.view === 'structured'));
+  $('#result').innerHTML = emptyResult();
+  updateResolveButton();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  $('#search').focus({ preventScroll: true });
+}
+
+$('#clearBtn').addEventListener('click', clearPage);
+
 $('#result').innerHTML = emptyResult();
 loadOffenses();
 

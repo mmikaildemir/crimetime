@@ -264,7 +264,9 @@ input[type="checkbox"] { accent-color: var(--navy); width: 15px; height: 15px; m
 .hint-line { font-size: 12px; color: var(--muted); }
 .sub-fields { margin-left: 23px; padding-left: 10px; border-left: 2px solid var(--navy-tint); display: grid; gap: 8px; }
 
-.resolve-bar { padding: 10px 14px; border-top: 1px solid var(--border); background: var(--panel-head); }
+.resolve-bar { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); background: var(--panel-head); }
+.resolve-bar .btn-clear { flex: 0 0 auto; padding: 10px 14px; font-size: 15px; font-weight: 700; white-space: nowrap; }
+.resolve-bar .btn-primary { flex: 1 1 auto; width: auto; }
 
 /* ---------- Buttons & labels ---------- */
 .btn {
