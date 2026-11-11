@@ -4,10 +4,14 @@
     python scripts/build_site.py --serve    # build, then serve on :8080
 
 Output:
-    _site/              copy of site/ with __BUILD__ replaced by a content hash
-    _site/engine.zip    crimetime/ engine + webapp/bridge.py + runtime data,
-                        unpacked into Pyodide by engine-worker.js
-    _site/offenses.json precomputed offense details (list order) for the UI
+    _site/                    copy of site/ with __BUILD__ replaced by a content hash
+    _site/engine.zip          crimetime/ engine + webapp/bridge.py + webapp/admin_bridge.py,
+                              unpacked into Pyodide by engine-worker.js (code only)
+    _site/data/               the data bundle, fetched at runtime so it can be
+                              replaced without a rebuild (see docs/HOSTING.md):
+        lists.json, sentencing_tables.json   engine reference data
+        manifest.json                        data version + changelog
+        offenses.json                        precomputed offense details for the UI
 """
 
 from __future__ import annotations
@@ -26,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 SITE_SRC = ROOT / "site"
 OUT = ROOT / "_site"
 ENGINE_EXCLUDE = {"legislation.py"}  # needs requests/dotenv; not used by the engine
-DATA_FILES = ["lists.json", "sentencing_tables.json"]
+DATA_FILES = ["lists.json", "sentencing_tables.json", "manifest.json"]
 TEMPLATED = {".html", ".js"}
 
 
@@ -37,7 +41,7 @@ def engine_files() -> list[tuple[Path, str]]:
         if p.name not in ENGINE_EXCLUDE
     ]
     files.append((ROOT / "webapp" / "bridge.py", "bridge.py"))
-    files += [(ROOT / "data" / name, f"data/{name}") for name in DATA_FILES]
+    files.append((ROOT / "webapp" / "admin_bridge.py", "admin_bridge.py"))
     return files
 
 
@@ -48,7 +52,7 @@ def build() -> str:
     offenses = [bridge.offense_detail(o["section"]) for o in bridge.list_offenses()]
     offenses_json = json.dumps(offenses, separators=(",", ":")).encode()
 
-    digest = hashlib.sha256(offenses_json)
+    digest = hashlib.sha256()
     for src, _ in files:
         digest.update(src.read_bytes())
     for src in sorted(SITE_SRC.rglob("*")):
@@ -70,11 +74,16 @@ def build() -> str:
             info.compress_type = zipfile.ZIP_DEFLATED
             zf.writestr(info, src.read_bytes())
 
-    (OUT / "offenses.json").write_bytes(offenses_json)
+    data_out = OUT / "data"
+    data_out.mkdir()
+    for name in DATA_FILES:
+        shutil.copyfile(ROOT / "data" / name, data_out / name)
+    (data_out / "offenses.json").write_bytes(offenses_json)
     (OUT / ".nojekyll").touch()
 
     size = sum(p.stat().st_size for p in OUT.rglob("*") if p.is_file())
-    print(f"Built {OUT.relative_to(ROOT)}/ — build {build_id}, {len(offenses)} offenses, "
+    version = json.loads((ROOT / "data" / "manifest.json").read_text())["version"]
+    print(f"Built {OUT.relative_to(ROOT)}/ — build {build_id}, data {version}, {len(offenses)} offenses, "
           f"{len(files)} engine files, {size / 1024:.0f} KB total")
     return build_id
 

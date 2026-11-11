@@ -8,22 +8,20 @@
   "offenseOverrides": {
     "_ref": "PL 70.00(3)(a) — offense-specific sentencing for Class A-I felonies",
     "_note": "Overrides the standard Class A-I indeterminate (15-25yr min to life) for offenses with statutory minimum carve-outs. Applied after modifier bumps but before disposition computation.",
-    "125.27": {
-      "minYears": [20, 25],
-      "_ref": "PL 70.00(3)(a)(i)(A) — murder in the first degree: min 20-25yr"
-    },
+    "125.27": {"minYears": [20, 25], "_ref": "PL 70.00(3)(a)(i)(A) — murder in the first degree: min 20-25yr"},
     "125.26": {
       "lifeWithoutParole": true,
       "subdivisions": {
         "1": {"lifeWithoutParole": true, "_ref": "PL 70.00(3)(a)(i)(B) — subd 1: MUST be life without parole"},
-        "2": {"minYears": [15, 25], "lifeWithoutParoleOptional": true, "_ref": "PL 70.00(3)(a)(i)(B) — subd 2: MAY be life without parole; otherwise standard A-I 15-25yr"}
+        "2": {
+          "minYears": [15, 25],
+          "lifeWithoutParoleOptional": true,
+          "_ref": "PL 70.00(3)(a)(i)(B) — subd 2: MAY be life without parole; otherwise standard A-I 15-25yr"
+        }
       },
       "_ref": "PL 70.00(3)(a)(i)(B) — aggravated murder: subd 1 LWOP mandatory, subd 2 LWOP optional"
     },
-    "130.95": {
-      "minYears": [10, 25],
-      "_ref": "PL 70.00(3)(a)(ii) — predatory sexual assault: min 10-25yr (vs standard A-II 3-8.33yr)"
-    },
+    "130.95": {"minYears": [10, 25], "_ref": "PL 70.00(3)(a)(ii) — predatory sexual assault: min 10-25yr (vs standard A-II 3-8.33yr)"},
     "130.96": {
       "minYears": [10, 25],
       "_ref": "PL 70.00(3)(a)(ii) — predatory sexual assault against a child: min 10-25yr (vs standard A-II 3-8.33yr)"
@@ -32,14 +30,8 @@
       "determinateOverride": [10, 30],
       "_ref": "PL 70.02(3)(a)(i) — aggravated assault upon a police officer/peace officer: B 10-30yr (vs standard 5-25)"
     },
-    "125.22": {
-      "determinateOverride": [10, 30],
-      "_ref": "PL 70.02(3)(a)(ii) — aggravated manslaughter 1st: B 10-30yr (vs standard 5-25)"
-    },
-    "125.21": {
-      "determinateOverride": [7, 20],
-      "_ref": "PL 70.02(3)(b)(i) — aggravated manslaughter 2nd: C 7-20yr (vs standard 3.5-15)"
-    },
+    "125.22": {"determinateOverride": [10, 30], "_ref": "PL 70.02(3)(a)(ii) — aggravated manslaughter 1st: B 10-30yr (vs standard 5-25)"},
+    "125.21": {"determinateOverride": [7, 20], "_ref": "PL 70.02(3)(b)(i) — aggravated manslaughter 2nd: C 7-20yr (vs standard 3.5-15)"},
     "125.11": {
       "determinateOverride": [3.5, 20],
       "_ref": "PL 70.02(3)(b)(iii) — aggravated criminally negligent homicide: C 3.5-20yr (vs standard 3.5-15)"
@@ -60,14 +52,8 @@
     "125.25": {
       "_note": "Murder 2nd subd 5 (cop-killer provision) gets life without parole per 70.00(3)(a)(i)(B). Not yet implemented — requires subdivision-level override modeling. Other subdivisions use standard A-I sentencing."
     },
-    "attempt_125.27": {
-      "minYears": [20, 40],
-      "_ref": "PL 70.00(3)(a)(i)(C) — attempted murder 1st: min 20-40yr"
-    },
-    "attempt_125.26": {
-      "minYears": [20, 40],
-      "_ref": "PL 70.00(3)(a)(i)(C) — attempted aggravated murder: min 20-40yr"
-    }
+    "attempt_125.27": {"minYears": [20, 40], "_ref": "PL 70.00(3)(a)(i)(C) — attempted murder 1st: min 20-40yr"},
+    "attempt_125.26": {"minYears": [20, 40], "_ref": "PL 70.00(3)(a)(i)(C) — attempted aggravated murder: min 20-40yr"}
   },
   "drugFelony": {
     "_ref": "PL 70.70 (non-A) / 70.71 (A) — felony drug offender sentencing. Applies to Article 220 and 222 felonies. VFO drug offenses still sentenced per 70.02/70.04/70.08 per 70.70(4).",
@@ -162,28 +148,10 @@
       }
     }
   },
-  "violation": {
-    "allOffenders": {
-      "type": "definite/discharge/fine",
-      "maxImprisonmentDays": 15,
-      "fineMax": 250,
-      "probationEligible": false
-    }
-  },
+  "violation": {"allOffenders": {"type": "definite/discharge/fine", "maxImprisonmentDays": 15, "fineMax": 250, "probationEligible": false}},
   "misdemeanor": {
-    "ClassB": {
-      "firstOffender": {
-        "type": "definite",
-        "maxTermMonths": 3
-      }
-    },
-    "ClassA": {
-      "firstOffender": {
-        "type": "definite",
-        "maxTermDays": 364,
-        "probationEligibleYears": 3
-      }
-    }
+    "ClassB": {"firstOffender": {"type": "definite", "maxTermMonths": 3}},
+    "ClassA": {"firstOffender": {"type": "definite", "maxTermDays": 364, "probationEligibleYears": 3}}
   },
   "nonViolentFelony": {
     "_ref": "Non-violent felonies (isVFO=false): indeterminate sentences per PL 70.00 / 70.06 / 70.10.",
@@ -298,9 +266,7 @@
         "sentenceType": "indeterminate",
         "discretionary": true,
         "_note": "Discretionary. Court MAY sentence as Class A-I. Requires separate judicial finding, not automatic from 2 priors alone.",
-        "rows": {
-          "allClasses": {"type": "indeterminate", "discretionary": true, "possibleMinYears": [15, 25], "possibleMaxYears": "life"}
-        }
+        "rows": {"allClasses": {"type": "indeterminate", "discretionary": true, "possibleMinYears": [15, 25], "possibleMaxYears": "life"}}
       }
     }
   },
@@ -396,11 +362,7 @@
   },
   "classificationModifiers": {
     "_ref": "Modifiers that change the offense CLASSIFICATION before a sentencing track is chosen. Applied in `order`; each sees the previous result. For each modifier, the first branch whose `map` contains the current classification fires. `vfo`: keep = unchanged, derive = re-check VFO_LIST for the new class, deem = statute deems it a VFO, undeem = sentenced as non-VFO.",
-    "order": [
-      "sexually_motivated_felony",
-      "hate_crime",
-      "terrorism"
-    ],
+    "order": ["sexually_motivated_felony", "hate_crime", "terrorism"],
     "sexually_motivated_felony": {
       "statute": "PL 130.91",
       "factField": "sexually_motivated",
@@ -457,11 +419,7 @@
           "vfo": "keep",
           "map": {"ClassB_Felony": "ClassB_Felony", "ClassB_Violent_Felony": "ClassB_Violent_Felony"}
         },
-        {
-          "name": "ClassA_I",
-          "vfo": "keep",
-          "map": {"ClassA_I_Felony": "ClassA_I_Felony"}
-        }
+        {"name": "ClassA_I", "vfo": "keep", "map": {"ClassA_I_Felony": "ClassA_I_Felony"}}
       ]
     },
     "terrorism": {
@@ -488,21 +446,14 @@
           "vfo": "undeem",
           "map": {"ClassB_Felony": "ClassA_I_Felony", "ClassB_Violent_Felony": "ClassA_I_Felony"}
         },
-        {
-          "name": "life_without_parole",
-          "vfo": "keep",
-          "map": {"ClassA_I_Felony": "ClassA_I_Felony"}
-        }
+        {"name": "life_without_parole", "vfo": "keep", "map": {"ClassA_I_Felony": "ClassA_I_Felony"}}
       ]
     }
   },
   "hateCrimeBump": {
     "_rule_ref": "PL 485.10",
     "_note": "Authoritative home for hate crime sentencing bump logic. Eligibility (isHateCrimeEligible) is determined by HATECRIME_LIST in ny_penal_ontology.json. This block defines what happens to the sentence once eligibility is confirmed and hate_crime_motivated is true.",
-    "misdemeanorOrClassCDE": {
-      "effect": "one category higher than base offense classification",
-      "isSimpleBump": true
-    },
+    "misdemeanorOrClassCDE": {"effect": "one category higher than base offense classification", "isSimpleBump": true},
     "ClassB": {
       "effect": "fixed statutory minimum floors per predicate-offender status",
       "isSimpleBump": false,
@@ -510,7 +461,11 @@
       "_note": "Not a simple one-class bump — court must apply 485.10(3) minimum floors based on prior record. Requires separate judicial finding.",
       "floorByStatus": {
         "_note": "Which 485.10(3) floor applies, by (sentencing track, derived offender status). Statuses not listed get no floor: 70.08 and 70.10 (485.10(3) lists none), drug track (no class B hate-eligible drug offense). 70.05 juvenile floor (3)(d) not applied yet: it is a max-term floor and the juvenile disposition's term holds the minimum period.",
-        "violent_felony": {"first_offender": "70.02", "second_violent_felony_offender_70_04": "70.04", "second_felony_offender_vfo_70_06_6": "70.06"},
+        "violent_felony": {
+          "first_offender": "70.02",
+          "second_violent_felony_offender_70_04": "70.04",
+          "second_felony_offender_vfo_70_06_6": "70.06"
+        },
         "nonviolent_felony": {"first_offender": "70.00", "second_felony_offender_70_06": "70.06"},
         "sex_offense_felony": {"first_offender": "70.02", "sex_offender_predicate_violent_70_80_5c": "70.04"},
         "_sexTrackNote": "UNVERIFIED: 485.10(3) does not name 70.80. Only 130.35 / 130.70 (class B VFOs) reach this; mapped to the 70.02/70.04 floors as before. Flag for legal review."
@@ -550,11 +505,7 @@
       },
       "splitSentence": {
         "eligible": true,
-        "probationYears": [
-          3,
-          4,
-          5
-        ],
+        "probationYears": [3, 4, 5],
         "conditionalDischargeYears": 3,
         "imprisonmentMaxMonths": 6,
         "intermittentMaxMonths": 4,
@@ -563,11 +514,7 @@
       },
       "probation": {
         "eligible": true,
-        "years": [
-          3,
-          4,
-          5
-        ],
+        "years": [3, 4, 5],
         "statuteRef": "PL 60.01(2)(a)(i), 65.00(3)(a)(i)",
         "conditions": "Institutional confinement not necessary; defendant needs guidance/supervision; not inconsistent with ends of justice"
       },
@@ -587,11 +534,7 @@
     },
     "misdemeanor": {
       "classA": {
-        "definiteSentence": {
-          "eligible": true,
-          "maxDays": 364,
-          "statuteRef": "PL 70.15(1)"
-        },
+        "definiteSentence": {"eligible": true, "maxDays": 364, "statuteRef": "PL 70.15(1)"},
         "intermittentImprisonment": {
           "eligible": true,
           "statuteRef": "PL 85.00",
@@ -599,71 +542,30 @@
         },
         "splitSentence": {
           "eligible": true,
-          "probationYears": [
-            2,
-            3
-          ],
+          "probationYears": [2, 3],
           "conditionalDischargeYears": 1,
           "imprisonmentMaxDays": 60,
           "intermittentMaxMonths": 4,
           "statuteRef": "PL 60.01(2)(d)"
         },
-        "probation": {
-          "eligible": true,
-          "years": [
-            2,
-            3
-          ],
-          "statuteRef": "PL 65.00(3)(b)(i)"
-        },
-        "conditionalDischarge": {
-          "eligible": true,
-          "years": 1,
-          "statuteRef": "PL 65.05(3)(b)",
-          "recordStatementRequired": false
-        },
-        "unconditionalDischarge": {
-          "eligible": true,
-          "statuteRef": "PL 65.20(1)",
-          "recordStatementRequired": false
-        }
+        "probation": {"eligible": true, "years": [2, 3], "statuteRef": "PL 65.00(3)(b)(i)"},
+        "conditionalDischarge": {"eligible": true, "years": 1, "statuteRef": "PL 65.05(3)(b)", "recordStatementRequired": false},
+        "unconditionalDischarge": {"eligible": true, "statuteRef": "PL 65.20(1)", "recordStatementRequired": false}
       },
       "classB": {
-        "definiteSentence": {
-          "eligible": true,
-          "maxMonths": 3,
-          "statuteRef": "PL 70.15(2)"
-        },
-        "intermittentImprisonment": {
-          "eligible": true,
-          "statuteRef": "PL 85.00"
-        },
+        "definiteSentence": {"eligible": true, "maxMonths": 3, "statuteRef": "PL 70.15(2)"},
+        "intermittentImprisonment": {"eligible": true, "statuteRef": "PL 85.00"},
         "splitSentence": {
           "eligible": true,
-          "probationYears": [
-            1
-          ],
+          "probationYears": [1],
           "conditionalDischargeYears": 1,
           "imprisonmentMaxDays": 60,
           "intermittentMaxMonths": 4,
           "statuteRef": "PL 60.01(2)(d)"
         },
-        "probation": {
-          "eligible": true,
-          "years": [
-            1
-          ],
-          "statuteRef": "PL 65.00(3)(c)"
-        },
-        "conditionalDischarge": {
-          "eligible": true,
-          "years": 1,
-          "statuteRef": "PL 65.05(3)(b)"
-        },
-        "unconditionalDischarge": {
-          "eligible": true,
-          "statuteRef": "PL 65.20(1)"
-        }
+        "probation": {"eligible": true, "years": [1], "statuteRef": "PL 65.00(3)(c)"},
+        "conditionalDischarge": {"eligible": true, "years": 1, "statuteRef": "PL 65.05(3)(b)"},
+        "unconditionalDischarge": {"eligible": true, "statuteRef": "PL 65.20(1)"}
       },
       "unclassified": {
         "definiteSentence": {
@@ -672,43 +574,16 @@
           "statuteRef": "PL 70.15(3)",
           "note": "As provided in the law creating the offense; not to exceed 1 year"
         },
-        "intermittentImprisonment": {
-          "eligible": true,
-          "statuteRef": "PL 85.00"
-        },
-        "probation": {
-          "eligible": true,
-          "years": [
-            3
-          ],
-          "statuteRef": "PL 65.00"
-        },
-        "conditionalDischarge": {
-          "eligible": true,
-          "years": 3,
-          "statuteRef": "PL 65.05"
-        },
-        "unconditionalDischarge": {
-          "eligible": true,
-          "statuteRef": "PL 65.20(1)"
-        }
+        "intermittentImprisonment": {"eligible": true, "statuteRef": "PL 85.00"},
+        "probation": {"eligible": true, "years": [3], "statuteRef": "PL 65.00"},
+        "conditionalDischarge": {"eligible": true, "years": 3, "statuteRef": "PL 65.05"},
+        "unconditionalDischarge": {"eligible": true, "statuteRef": "PL 65.20(1)"}
       }
     },
     "violation": {
-      "definiteSentence": {
-        "eligible": true,
-        "maxDays": 15,
-        "statuteRef": "PL 70.15(4)"
-      },
-      "conditionalDischarge": {
-        "eligible": true,
-        "years": 1,
-        "statuteRef": "PL 65.05"
-      },
-      "unconditionalDischarge": {
-        "eligible": true,
-        "statuteRef": "PL 65.20(1)"
-      }
+      "definiteSentence": {"eligible": true, "maxDays": 15, "statuteRef": "PL 70.15(4)"},
+      "conditionalDischarge": {"eligible": true, "years": 1, "statuteRef": "PL 65.05"},
+      "unconditionalDischarge": {"eligible": true, "statuteRef": "PL 65.20(1)"}
     }
   },
   "exceptions": {
@@ -729,21 +604,14 @@
     },
     "domesticViolenceIndeterminate": {
       "statuteRef": "PL 60.12",
-      "triggeringFactors": [
-        "domestic_violence_by_victim"
-      ],
+      "triggeringFactors": ["domestic_violence_by_victim"],
       "description": "If DV by victim was a factor in causing the offense, court may impose indeterminate sentence instead of determinate.",
-      "maxTermYears": [
-        3,
-        7
-      ],
+      "maxTermYears": [3, 7],
       "minTermRule": "one_half_of_max"
     },
     "dwiSplitSentenceVariant": {
       "statuteRef": "PL 60.21",
-      "triggeringFactors": [
-        "is_dwi"
-      ],
+      "triggeringFactors": ["is_dwi"],
       "description": "For DWI sentences, imprisonment in a split sentence may be up to 1 year instead of the standard 6 months."
     }
   },
@@ -768,10 +636,7 @@
         "ClassC": 15000,
         "_note": "Overrides standard felony fine for Article 220/222 drug felonies."
       },
-      "mandatorySurcharge": {
-        "amount": 300,
-        "statuteRef": "PL 60.35(1)(a)"
-      },
+      "mandatorySurcharge": {"amount": 300, "statuteRef": "PL 60.35(1)(a)"},
       "sexOffenderRegistrationFee": {
         "amount": 50,
         "statuteRef": "PL 60.35(1)(a)(iv)",
@@ -782,14 +647,8 @@
         "statuteRef": "PL 60.35(1)(b)",
         "_note": "Levied on convictions for Art 130 felonies, incest (255.25/26/27), and Art 263 offenses."
       },
-      "crimeVictimAssistanceFee": {
-        "amount": 25,
-        "statuteRef": "PL 60.35(1)(a)"
-      },
-      "dnaDatabankFee": {
-        "amount": 50,
-        "statuteRef": "Exec Law 995(7); PL 60.35(1)(a)(v)"
-      },
+      "crimeVictimAssistanceFee": {"amount": 25, "statuteRef": "PL 60.35(1)(a)"},
+      "dnaDatabankFee": {"amount": 50, "statuteRef": "Exec Law 995(7); PL 60.35(1)(a)(v)"},
       "surchargeSummons": {
         "thresholdJailDays": 60,
         "statuteRef": "PL 60.35(8)",
@@ -798,81 +657,28 @@
     },
     "misdemeanor": {
       "classA": {
-        "fine": {
-          "maxAmount": 1000,
-          "altDoubleGain": true,
-          "canStandAlone": true,
-          "statuteRef": "PL 80.05(1)"
-        },
-        "mandatorySurcharge": {
-          "amount": 175,
-          "statuteRef": "PL 60.35(1)(b)"
-        },
-        "crimeVictimAssistanceFee": {
-          "amount": 25,
-          "statuteRef": "PL 60.35(1)(b)"
-        },
-        "dnaDatabankFee": {
-          "amount": 50,
-          "statuteRef": "Exec Law 995(7)"
-        }
+        "fine": {"maxAmount": 1000, "altDoubleGain": true, "canStandAlone": true, "statuteRef": "PL 80.05(1)"},
+        "mandatorySurcharge": {"amount": 175, "statuteRef": "PL 60.35(1)(b)"},
+        "crimeVictimAssistanceFee": {"amount": 25, "statuteRef": "PL 60.35(1)(b)"},
+        "dnaDatabankFee": {"amount": 50, "statuteRef": "Exec Law 995(7)"}
       },
       "classB": {
-        "fine": {
-          "maxAmount": 500,
-          "altDoubleGain": true,
-          "canStandAlone": true,
-          "statuteRef": "PL 80.05(2)"
-        },
-        "mandatorySurcharge": {
-          "amount": 175,
-          "statuteRef": "PL 60.35(1)(b)"
-        },
-        "crimeVictimAssistanceFee": {
-          "amount": 25,
-          "statuteRef": "PL 60.35(1)(b)"
-        },
-        "dnaDatabankFee": {
-          "amount": 50,
-          "statuteRef": "Exec Law 995(7)"
-        }
+        "fine": {"maxAmount": 500, "altDoubleGain": true, "canStandAlone": true, "statuteRef": "PL 80.05(2)"},
+        "mandatorySurcharge": {"amount": 175, "statuteRef": "PL 60.35(1)(b)"},
+        "crimeVictimAssistanceFee": {"amount": 25, "statuteRef": "PL 60.35(1)(b)"},
+        "dnaDatabankFee": {"amount": 50, "statuteRef": "Exec Law 995(7)"}
       },
       "unclassified": {
-        "fine": {
-          "maxAmount": 1000,
-          "altDoubleGain": true,
-          "canStandAlone": true,
-          "statuteRef": "PL 80.05(3)"
-        },
-        "mandatorySurcharge": {
-          "amount": 175,
-          "statuteRef": "PL 60.35(1)(b)"
-        },
-        "crimeVictimAssistanceFee": {
-          "amount": 25,
-          "statuteRef": "PL 60.35(1)(b)"
-        },
-        "dnaDatabankFee": {
-          "amount": 50,
-          "statuteRef": "Exec Law 995(7)"
-        }
+        "fine": {"maxAmount": 1000, "altDoubleGain": true, "canStandAlone": true, "statuteRef": "PL 80.05(3)"},
+        "mandatorySurcharge": {"amount": 175, "statuteRef": "PL 60.35(1)(b)"},
+        "crimeVictimAssistanceFee": {"amount": 25, "statuteRef": "PL 60.35(1)(b)"},
+        "dnaDatabankFee": {"amount": 50, "statuteRef": "Exec Law 995(7)"}
       }
     },
     "violation": {
-      "fine": {
-        "maxAmount": 250,
-        "altDoubleGain": true,
-        "canStandAlone": true,
-        "statuteRef": "PL 80.05(4)"
-      },
-      "mandatorySurcharge": {
-        "amount": 95,
-        "statuteRef": "PL 60.35(1)(a)(iii)"
-      },
-      "crimeVictimAssistanceFee": {
-        "amount": 25,
-        "statuteRef": "PL 60.35(1)(a)(iii)"
-      }
+      "fine": {"maxAmount": 250, "altDoubleGain": true, "canStandAlone": true, "statuteRef": "PL 80.05(4)"},
+      "mandatorySurcharge": {"amount": 95, "statuteRef": "PL 60.35(1)(a)(iii)"},
+      "crimeVictimAssistanceFee": {"amount": 25, "statuteRef": "PL 60.35(1)(a)(iii)"}
     }
   },
   "collateral": {
@@ -880,12 +686,7 @@
       "Collateral requirements beyond sentencing and financials.",
       "DNA sample requirement is felony-gated plus enumerated misdemeanors per Exec Law 995-c(3)."
     ],
-    "felony": {
-      "dnaSampleRequired": {
-        "required": true,
-        "statuteRef": "Exec Law 995-c(3)"
-      }
-    },
+    "felony": {"dnaSampleRequired": {"required": true, "statuteRef": "Exec Law 995-c(3)"}},
     "misdemeanor": {
       "dnaSampleRequired": {
         "required": false,
@@ -893,12 +694,7 @@
         "note": "Only for enumerated sex/offense misdemeanors — extend when those are added"
       }
     },
-    "violation": {
-      "dnaSampleRequired": {
-        "required": false,
-        "statuteRef": "Exec Law 995-c(3)"
-      }
-    }
+    "violation": {"dnaSampleRequired": {"required": false, "statuteRef": "Exec Law 995-c(3)"}}
   },
   "restitution": {
     "statuteRef": "PL 60.27(1); CPL 420.10(8)",
@@ -930,7 +726,12 @@
             "_ref": "70.05(2)(b) + (3)(b) — arson 1st (150.20) / kidnapping 1st (135.25): max 12-15yr, min 1-5yr",
             "statute": "PL 70.05(2)(b), 70.05(3)(b)"
           },
-          "ClassB": {"type": "indeterminate", "maxTermYears": [1, 10], "minTermRule": "1yr to 1/3 of max", "_ref": "70.05(2)(c) — max ≤10yr"},
+          "ClassB": {
+            "type": "indeterminate",
+            "maxTermYears": [1, 10],
+            "minTermRule": "1yr to 1/3 of max",
+            "_ref": "70.05(2)(c) — max ≤10yr"
+          },
           "ClassC": {"type": "indeterminate", "maxTermYears": [1, 7], "minTermRule": "1yr to 1/3 of max", "_ref": "70.05(2)(d) — max ≤7yr"},
           "ClassD": {"type": "indeterminate", "maxTermYears": [1, 4], "minTermRule": "1yr to 1/3 of max", "_ref": "70.05(2)(e) — max ≤4yr"}
         }

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CrimeTime Admin</title>
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+<link rel="icon" type="image/png" href="../assets/nypti-seal.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:wght@500;700&display=swap" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../styles.css?v=__BUILD__" />
+<link rel="stylesheet" href="admin.css?v=__BUILD__" />
+</head>
+<body data-tab="offenses">
+
+<div class="test-site-banner" role="alert">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <span><strong>TEST SITE — ADMIN TOOL PREVIEW.</strong>
+  Bundles downloaded here don't change any live site until someone deploys them.</span>
+</div>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="seal" href="../" title="Back to CrimeTime">
+      <img src="../assets/nypti-seal.png" width="110" height="110" alt="New York Prosecutors Training Institute seal" />
+    </a>
+    <div class="brand">
+      <div class="org">New York Prosecutors Training Institute</div>
+      <h1 class="title">CrimeTime <span class="ver">Admin</span></h1>
+      <div class="tagline">Keep offenses and sentencing ranges current when the law changes</div>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite">
+      <span class="dot"></span><span id="statusText">Loading engine…</span>
+    </div>
+  </div>
+  <nav class="site-nav admin-nav" aria-label="Admin sections">
+    <ul>
+      <li><a href="#offenses" data-tab-link="offenses"><i class="fa-solid fa-book"></i> Offenses</a></li>
+      <li><a href="#lists" data-tab-link="lists"><i class="fa-solid fa-list-check"></i> Statutory lists</a></li>
+      <li><a href="#tables" data-tab-link="tables"><i class="fa-solid fa-table"></i> Sentencing tables</a></li>
+      <li><a href="#publish" data-tab-link="publish"><i class="fa-solid fa-upload"></i> Review &amp; publish <span class="count-pill" id="navChangeCount" hidden></span></a></li>
+      <li><a href="#history" data-tab-link="history"><i class="fa-solid fa-clock-rotate-left"></i> History</a></li>
+      <li><a href="../"><i class="fa-solid fa-scale-balanced"></i> Public site</a></li>
+    </ul>
+  </nav>
+  <div class="band"></div>
+</header>
+
+<div class="draft-bar" id="draftBar">
+  <div class="draft-info">
+    <span>Live data <strong id="liveVersion">…</strong></span>
+    <span class="sep">·</span>
+    <span id="draftSummary">No changes yet</span>
+  </div>
+  <div class="draft-actions">
+    <button class="btn btn-default btn-sm" id="discardBtn" type="button" disabled><i class="fa-solid fa-rotate-left"></i> Discard draft</button>
+    <a class="btn btn-navy btn-sm" href="#publish"><i class="fa-solid fa-upload"></i> Review &amp; publish</a>
+  </div>
+</div>
+
+<div class="restore-banner alert alert-warning" id="restoreBanner" hidden>
+  <span><i class="fa-solid fa-floppy-disk"></i> You have unpublished changes from an earlier session (<span id="restoreWhen"></span>).</span>
+  <span class="inline-actions">
+    <button class="btn btn-navy btn-sm" id="restoreYes" type="button">Restore them</button>
+    <button class="btn btn-default btn-sm" id="restoreNo" type="button">Start fresh</button>
+  </span>
+</div>
+
+<main class="admin-main">
+
+  <!-- ===================== OFFENSES ===================== -->
+  <section class="tab" data-tab-panel="offenses">
+    <div class="split">
+      <div class="panel list-panel">
+        <div class="panel-heading">
+          <h2><i class="fa-solid fa-book"></i> Offenses</h2>
+          <button class="btn btn-default btn-sm" id="newOffenseBtn" type="button"><i class="fa-solid fa-plus"></i> Add offense</button>
+        </div>
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="search" id="offenseSearch" placeholder="Search by section or name" autocomplete="off" aria-label="Search offenses" />
+        </div>
+        <label class="check-row list-filter"><input type="checkbox" id="showRepealed" /> Show repealed offenses</label>
+        <div class="offense-list" id="adminOffenseList" role="listbox" aria-label="Offenses"></div>
+      </div>
+      <div class="panel editor-panel" id="offenseEditor">
+        <div class="empty-state"><div class="big-icon"><i class="fa-solid fa-book-open"></i></div>
+          <p>Pick an offense to edit it, or add a new one.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== LISTS ===================== -->
+  <section class="tab" data-tab-panel="lists" hidden>
+    <div class="panel">
+      <div class="panel-heading"><h2><i class="fa-solid fa-list-check"></i> Statutory lists</h2></div>
+      <div class="panel-body">
+        <p class="hint-line">These lists decide which offenses count as violent felonies, which can be charged as sexually motivated,
+        hate crimes or crimes of terrorism, and which carry the for-hire driver enhancement. You can also change an offense's lists from its own page.</p>
+        <div id="listsEditor" class="lists-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TABLES ===================== -->
+  <section class="tab" data-tab-panel="tables" hidden>
+    <div class="split">
+      <div class="panel list-panel">
+        <div class="panel-heading"><h2><i class="fa-solid fa-table"></i> Sentencing tables</h2></div>
+        <nav class="table-nav" id="tableNav" aria-label="Sentencing tables"></nav>
+      </div>
+      <div class="panel editor-panel" id="tableEditor">
+        <div class="empty-state"><div class="big-icon"><i class="fa-solid fa-table"></i></div>
+          <p>Pick a table to edit its ranges.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PUBLISH ===================== -->
+  <section class="tab" data-tab-panel="publish" hidden>
+    <div class="publish-steps">
+
+      <div class="panel">
+        <div class="panel-heading"><h2><span class="step-num">1</span> What you changed</h2></div>
+        <div class="panel-body" id="changesBody"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading"><h2><span class="step-num">2</span> Problems</h2></div>
+        <div class="panel-body" id="issuesBody"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading">
+          <h2><span class="step-num">3</span> Effect on sentences</h2>
+          <button class="btn btn-navy btn-sm" id="impactBtn" type="button"><i class="fa-solid fa-play"></i> Check effect</button>
+        </div>
+        <div class="panel-body" id="impactBody">
+          <p class="hint-line">Runs the sentencing engine on every affected offense, prior record and special circumstance,
+          once with the live data and once with your changes, and lists every result that changes.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading"><h2><span class="step-num">4</span> Try a case</h2></div>
+        <div class="panel-body">
+          <form id="tryForm" class="try-form">
+            <label class="field"><span>Section</span><input type="text" id="trySection" placeholder="e.g. 220.39" required /></label>
+            <label class="field"><span>Prior felonies</span><input type="number" id="tryPriors" min="0" max="5" value="0" /></label>
+            <label class="field"><span>…of which violent</span><input type="number" id="tryVfos" min="0" max="5" value="0" /></label>
+            <div class="try-checks">
+              <label class="check-row"><input type="checkbox" id="tryAttempt" /> Attempt</label>
+              <label class="check-row"><input type="checkbox" id="tryHate" /> Hate crime</label>
+              <label class="check-row"><input type="checkbox" id="trySmf" /> Sexually motivated</label>
+              <label class="check-row"><input type="checkbox" id="tryTerror" /> Terrorism</label>
+            </div>
+            <button class="btn btn-navy" type="submit"><i class="fa-solid fa-gavel"></i> Calculate with my changes</button>
+          </form>
+          <div id="tryResult"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading"><h2><span class="step-num">5</span> Record why</h2></div>
+        <div class="panel-body">
+          <div class="record-grid">
+            <label class="field"><span>Your name</span><input type="text" id="recAuthor" autocomplete="name" /></label>
+            <label class="field"><span>Effective date of the law change</span><input type="date" id="recEffective" /></label>
+            <label class="field wide"><span>Source <em class="muted">(chapter law, statute section or court decision)</em></span>
+              <input type="text" id="recSource" placeholder="e.g. L.2026, ch. 123 amending PL 70.70(3)" /></label>
+            <label class="field wide"><span>Reason for the change</span>
+              <textarea id="recReason" rows="3" placeholder="e.g. Legislature raised the minimum term for second felony drug offenders, class B."></textarea></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading"><h2><span class="step-num">6</span> Publish</h2></div>
+        <div class="panel-body">
+          <ul class="checklist" id="publishChecklist"></ul>
+          <button class="btn btn-primary" id="publishBtn" type="button" disabled><i class="fa-solid fa-file-zipper"></i> Download data bundle</button>
+          <div id="publishDone"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ===================== HISTORY ===================== -->
+  <section class="tab" data-tab-panel="history" hidden>
+    <div class="panel">
+      <div class="panel-heading">
+        <h2><i class="fa-solid fa-clock-rotate-left"></i> Change history</h2>
+        <label class="btn btn-default btn-sm file-btn"><i class="fa-solid fa-folder-open"></i> Open a saved bundle…
+          <input type="file" id="bundleFile" accept=".zip,application/zip" hidden /></label>
+      </div>
+      <div class="panel-body">
+        <p class="hint-line">To roll back, open the bundle of the version you want to return to. It becomes your draft and you publish it as a new version.
+          Every published bundle should be kept (see the hosting guide).</p>
+        <div id="openBundleMsg"></div>
+        <div id="historyBody"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="../engine.js?v=__BUILD__" data-admin></script>
+<script src="admin.js?v=__BUILD__"></script>
+</body>
+</html>

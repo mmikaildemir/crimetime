@@ -1,0 +1,15 @@
+{
+  "version": "2026-11-11.1",
+  "published": "2026-11-11",
+  "changes": [
+    {
+      "version": "2026-11-11.1",
+      "date": "2026-11-11",
+      "author": "CrimeTime developers",
+      "reason": "First versioned data bundle, published alongside the admin tool.",
+      "source": "",
+      "effective": "",
+      "summary": []
+    }
+  ]
+}

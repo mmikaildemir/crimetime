@@ -1,9 +1,14 @@
 // CrimeTime 2.0 — main-thread client for the Pyodide engine worker.
-// Offense data is static (offenses.json); only resolve() needs Python.
+// The public page only needs resolve(); the admin page (site/admin/) loads
+// this script with data-admin and uses call() for the admin_bridge functions.
 
 const engine = (() => {
-  const build = new URL(document.currentScript.src).searchParams.get('v') || '';
-  const worker = new Worker('engine-worker.js?v=' + build);
+  const script = document.currentScript;
+  const build = new URL(script.src).searchParams.get('v') || '';
+  const workerUrl = new URL('engine-worker.js', script.src);
+  workerUrl.searchParams.set('v', build);
+  if (script.hasAttribute('data-admin')) workerUrl.searchParams.set('admin', '1');
+  const worker = new Worker(workerUrl);
   const pending = new Map();
   const statusListeners = [];
   let nextId = 1;
@@ -35,6 +40,7 @@ const engine = (() => {
 
   return {
     ready,
+    call,
     onStatus: (fn) => statusListeners.push(fn),
     resolve: (body) => call('resolve_json', JSON.stringify(body)),
   };

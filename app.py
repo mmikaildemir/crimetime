@@ -1,5 +1,9 @@
 """
-CrimeTime — Data Entry Console (Streamlit)
+CrimeTime — Data Entry Console (Streamlit) — developer tool.
+
+Admins use the browser admin tool instead (site/admin/, docs/HOSTING.md), which
+validates edits, previews their effect on sentences, and records a changelog.
+This console writes data/*.json directly with none of those checks.
 
 Edit reference data through forms instead of hand-editing JSON:
   Tab 1: Offenses      — add/edit/delete offenses (data/lists.json)

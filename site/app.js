@@ -1,5 +1,5 @@
 // CrimeTime 2.0 — frontend logic (static GitHub Pages build).
-// Offense data comes from offenses.json (precomputed by scripts/build_site.py);
+// Offense data comes from data/offenses.json (part of the replaceable data bundle);
 // sentencing runs in-browser through `engine` (engine.js → Pyodide worker).
 
 const $ = (sel) => document.querySelector(sel);
@@ -65,11 +65,17 @@ function updateResolveButton() {
 async function loadOffenses() {
   const list = $('#offenseList');
   try {
-    const r = await fetch('offenses.json?v=' + BUILD);
+    // no-cache: the data bundle can be replaced on the server without a rebuild.
+    const [r, m] = await Promise.all([
+      fetch('data/offenses.json', { cache: 'no-cache' }),
+      fetch('data/manifest.json', { cache: 'no-cache' }).catch(() => null),
+    ]);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     state.offenses = await r.json();
+    state.dataVersion = m && m.ok ? (await m.json()).version : null;
     state.bySection = new Map(state.offenses.map(o => [o.section, o]));
-    $('#offenseCount').textContent = `${state.offenses.length} offenses`;
+    $('#offenseCount').textContent = `${state.offenses.length} offenses`
+      + (state.dataVersion ? ` · data ${state.dataVersion}` : '');
     renderOffenseList($('#search').value);
     const fromHash = sectionFromHash();
     if (fromHash) selectOffense(fromHash, { scroll: false, push: false });
@@ -728,6 +734,7 @@ function feedbackContext() {
   const primary = out?.available_dispositions?.[0];
   return {
     build: BUILD,
+    data_version: state.dataVersion,
     page: location.href,
     browser: navigator.userAgent,
     offense: d ? `§${d.section} ${d.name} (${d.classification})` : null,

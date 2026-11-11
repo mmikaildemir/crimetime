@@ -37,6 +37,31 @@ def _load_sentencing() -> dict[str, Any]:
     return _sentencing
 
 
+def set_data(lists: dict[str, Any] | None = None, tables: dict[str, Any] | None = None) -> None:
+    """Replace the reference data in memory (admin tool drafts, impact checks).
+
+    A None argument leaves that file as it is. Call reset_data() to go back to
+    reading data/*.json from disk.
+    """
+    global _lists, _sentencing
+    if lists is not None:
+        _lists = lists
+    if tables is not None:
+        _sentencing = tables
+
+
+def reset_data() -> None:
+    """Drop in-memory data so the next access re-reads data/*.json."""
+    global _lists, _sentencing
+    _lists = None
+    _sentencing = None
+
+
+def current_data() -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return the (lists, tables) currently in use."""
+    return _load_lists(), _load_sentencing()
+
+
 # ---------------------------------------------------------------------------
 # Lists accessors
 # ---------------------------------------------------------------------------

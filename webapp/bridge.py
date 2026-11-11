@@ -123,7 +123,7 @@ def _offense_or_raise(section: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def list_offenses(q: str | None = None) -> list[dict]:
+def list_offenses(q: str | None = None, include_repealed: bool = False) -> list[dict]:
     items = [
         {
             "section": s,
@@ -132,6 +132,7 @@ def list_offenses(q: str | None = None) -> list[dict]:
             "article": o.get("article", 0),
         }
         for s, o in get_all_offenses().items()
+        if include_repealed or not o.get("repealed")
     ]
     items.sort(key=lambda t: (t["article"] or 0, t["section"]))
     if q:
