@@ -530,3 +530,17 @@ td.amount, th.amount { text-align: right; white-space: nowrap; font-weight: 700;
 }
 .feedback-fab:hover { background: #8c0019; }
 .feedback-fab:focus-visible { outline: 3px solid #ffd54f; outline-offset: 2px; }
+
+/* Statute citations linked to statutes.nypti.org (statute-links.js) */
+a.statute-link {
+  color: var(--link);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+a.statute-link:hover,
+a.statute-link:focus-visible {
+  text-decoration-style: solid;
+}
+@media print {
+  a.statute-link { color: inherit; text-decoration: none; }
+}
