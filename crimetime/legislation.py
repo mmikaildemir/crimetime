@@ -1,8 +1,5 @@
-"""NYS Open Legislation API helpers — shared by the Streamlit app and the
+"""NYS Open Legislation API helpers, used by the `scripts/ingest_offenses.py`
 batch ingestion pipeline.
-
-Extracted from app.py so that both the interactive console and the
-`scripts/ingest_offenses.py` CLI import from a single source of truth.
 
 Key functions:
   - load_api_key()           — read OPEN_LEGISLATION_API_KEY from env

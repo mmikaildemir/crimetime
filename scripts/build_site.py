@@ -12,6 +12,8 @@ Output:
         lists.json, sentencing_tables.json   engine reference data
         manifest.json                        data version + changelog
         offenses.json                        precomputed offense details for the UI
+        review_sheets.json, statutes.json    one fact sheet per crime for site/review/
+                                             (webapp/review_bridge.py, data/statute_text.json)
 """
 
 from __future__ import annotations
@@ -46,11 +48,13 @@ def engine_files() -> list[tuple[Path, str]]:
 
 
 def build() -> str:
-    from webapp import bridge
+    from webapp import bridge, review_bridge
 
     files = engine_files()
     offenses = [bridge.offense_detail(o["section"]) for o in bridge.list_offenses()]
     offenses_json = json.dumps(offenses, separators=(",", ":")).encode()
+    sheets = review_bridge.build_sheets()
+    statutes = review_bridge.statutes_for_site(sheets)
 
     digest = hashlib.sha256()
     for src, _ in files:
@@ -79,12 +83,14 @@ def build() -> str:
     for name in DATA_FILES:
         shutil.copyfile(ROOT / "data" / name, data_out / name)
     (data_out / "offenses.json").write_bytes(offenses_json)
+    (data_out / "review_sheets.json").write_text(json.dumps(sheets, separators=(",", ":"), ensure_ascii=False))
+    (data_out / "statutes.json").write_text(json.dumps(statutes, separators=(",", ":"), ensure_ascii=False))
     (OUT / ".nojekyll").touch()
 
     size = sum(p.stat().st_size for p in OUT.rglob("*") if p.is_file())
     version = json.loads((ROOT / "data" / "manifest.json").read_text())["version"]
     print(f"Built {OUT.relative_to(ROOT)}/ — build {build_id}, data {version}, {len(offenses)} offenses, "
-          f"{len(files)} engine files, {size / 1024:.0f} KB total")
+          f"{len(files)} engine files, {sheets['count']} review sheets, {size / 1024:.0f} KB total")
     return build_id
 
 

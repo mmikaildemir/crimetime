@@ -1,0 +1,94 @@
+/* CrimeTime Legal Review — builds on ../styles.css (same tokens, header, panels, forms). */
+
+.btn-navy { color: #fff; background: var(--navy); border-color: #002a4b; font-weight: 700; }
+.btn-navy:hover:not(:disabled) { background: var(--navy-2); text-decoration: none; }
+.btn-ok { color: #fff; background: var(--success); border-color: #3a733b; font-weight: 700; }
+.btn-ok:hover { filter: brightness(1.08); }
+.file-btn { cursor: pointer; }
+textarea {
+  width: 100%; padding: 8px 10px; font: inherit; color: var(--text); background: #fff;
+  border: 1px solid var(--border-2); border-radius: var(--radius); resize: vertical;
+}
+textarea:focus { outline: none; border-color: #66afe9; box-shadow: 0 0 0 3px rgba(102, 175, 233, .35); }
+.alert-success { color: var(--success); background: var(--success-bg); border-color: #d6e9c6; }
+.alert-warning { color: var(--warning); background: var(--warning-bg); border-color: #faebcc; }
+
+/* Top bar: name, progress, download */
+.review-bar {
+  position: sticky; top: 44px; z-index: 50;
+  display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap;
+  padding: var(--sp-2) 24px; background: #fff; border-bottom: 1px solid var(--border);
+}
+.name-field { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); font-weight: 600; color: #555; }
+.name-field input { width: 220px; height: 32px; }
+.progress { font-size: var(--fs-sm); color: var(--muted); }
+.bar-actions { margin-left: auto; display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+.howto, .import-msg { max-width: 1440px; margin: var(--sp-4) auto 0; padding: 0 24px; }
+.howto { display: flex; gap: var(--sp-4); align-items: center; }
+.howto > div { flex: 1; padding: var(--sp-3) var(--sp-4); background: var(--info-bg); color: var(--info); border: 1px solid #bce8f1; border-radius: var(--radius); font-size: var(--fs-sm); }
+.howto[hidden], .import-msg:empty { display: none; }
+
+/* Layout */
+.review-layout {
+  max-width: 1440px; margin: var(--sp-4) auto var(--sp-6); padding: 0 24px;
+  display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: var(--sp-5); align-items: start;
+}
+.crime-list-panel { position: sticky; top: 100px; height: calc(100vh - 116px); min-height: 420px; overflow: hidden; }
+.filter-row { padding: var(--sp-2) var(--sp-5); border-bottom: 1px solid var(--border); }
+.crime-list { flex: 1; overflow-y: auto; }
+.crime-list .art { padding: 6px var(--sp-5); font-size: var(--fs-xs); font-weight: 700; color: var(--muted); background: var(--panel-head); border-bottom: 1px solid var(--hairline); text-transform: uppercase; letter-spacing: .5px; }
+.crime-item {
+  display: flex; gap: var(--sp-2); align-items: baseline; width: 100%;
+  padding: 7px var(--sp-5); border: 0; border-bottom: 1px solid var(--hairline); background: #fff;
+  font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; color: var(--text);
+}
+.crime-item:hover { background: #f3f5f8; }
+.crime-item.current { background: var(--navy-tint); box-shadow: inset 3px 0 0 var(--navy); }
+.crime-item .sec { flex: none; width: 62px; font-weight: 700; color: var(--navy); font-variant-numeric: tabular-nums; }
+.crime-item .nm { flex: 1; }
+.crime-item .mk { flex: none; width: 16px; text-align: center; }
+.mk .fa-circle-check { color: var(--success); }
+.mk .fa-circle-xmark { color: var(--danger); }
+.mk .fa-rotate { color: #c07a00; }
+
+/* Sheet */
+.sheet .panel-body { display: grid; gap: var(--sp-4); }
+.sheet-head { display: flex; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; align-items: baseline; }
+.sheet-head h2 { margin: 0; font-size: var(--fs-xl); color: var(--navy); line-height: 1.3; }
+.sheet-head .cls { font-size: var(--fs-sm); color: var(--muted); }
+.links { display: flex; gap: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-sm); }
+details.statute { border: 1px solid var(--border); border-radius: var(--radius); }
+details.statute > summary { cursor: pointer; padding: var(--sp-2) var(--sp-3); font-size: var(--fs-sm); font-weight: 600; }
+.statute-text { margin: 0; padding: var(--sp-3) var(--sp-4); max-height: 340px; overflow: auto; white-space: pre-wrap; font: var(--fs-sm)/1.55 Georgia, 'Times New Roman', serif; border-top: 1px solid var(--hairline); }
+
+.facts { width: 100%; border-collapse: collapse; }
+.facts th, .facts td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--hairline); font-size: var(--fs-md); }
+.facts th { width: 34%; font-weight: 600; color: #555; font-size: var(--fs-sm); }
+.facts td.wrong-cell { width: 92px; text-align: right; white-space: nowrap; }
+.facts tr.is-wrong th, .facts tr.is-wrong td { background: var(--danger-bg); }
+.facts tr.fix-row td { padding-top: 0; background: var(--danger-bg); }
+.facts tr.fix-row textarea { border-color: #e4b9b9; }
+.wrong-toggle { display: inline-flex; gap: 6px; align-items: center; font-size: var(--fs-sm); color: var(--danger); font-weight: 600; cursor: pointer; }
+.wrong-toggle input { accent-color: var(--danger); width: 16px; height: 16px; }
+
+.sheet-foot { display: grid; gap: var(--sp-3); padding-top: var(--sp-2); }
+.sheet-foot .field > span { font-weight: 600; font-size: var(--fs-sm); color: #555; }
+.foot-actions { display: flex; gap: var(--sp-3); flex-wrap: wrap; align-items: center; }
+.foot-actions .btn { padding: 10px 18px; font-size: var(--fs-md); }
+.saved-note { font-size: var(--fs-sm); color: var(--muted); }
+.stale-note { font-size: var(--fs-sm); padding: var(--sp-2) var(--sp-3); border: 1px solid #f0cf8f; background: #fff1d6; border-radius: var(--radius); color: #7a4d00; }
+
+@media (max-width: 900px) {
+  .review-layout { grid-template-columns: 1fr; }
+  .crime-list-panel { position: static; height: 360px; }
+  .review-bar { position: static; }
+}
+@media (max-width: 600px) {
+  .review-layout, .howto, .import-msg, .review-bar { padding-left: 16px; padding-right: 16px; }
+  .name-field input { width: 100%; }
+  .name-field { flex: 1; }
+  .facts th { width: auto; display: block; border-bottom: 0; padding-bottom: 0; }
+  .facts td { display: block; }
+  .facts td.wrong-cell { text-align: left; }
+}

@@ -97,7 +97,6 @@ _SPECIAL_70_08_AII_SECTIONS = {"130.95", "130.96"}
 
 # Sections with special Class A-I juvenile treatment (70.05(2)(a)/(b))
 _JUVENILE_A_I_MURDER = "125.25"
-_JUVENILE_A_I_ARSON_KIDNAP = {"150.20", "135.25"}
 
 
 # ---------------------------------------------------------------------------

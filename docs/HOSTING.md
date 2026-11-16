@@ -18,11 +18,14 @@ _site/
   index.html, app.js, styles.css, engine.js, engine-worker.js, assets/
   engine.zip            sentencing engine (code only)
   admin/                the admin tool  ← put behind your login
+  review/               crime-by-crime legal review for attorneys (no data is sent anywhere)
   data/                 the data bundle ← replaced by admins, no rebuild needed
     lists.json
     sentencing_tables.json
     manifest.json       data version + change history
     offenses.json
+    review_sheets.json  one review sheet per crime (generated at build time)
+    statutes.json       statute text shown to reviewers
 ```
 
 Requirements:

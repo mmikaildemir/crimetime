@@ -198,55 +198,6 @@ class CollateralRequirement(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Conditional classification (offense-intrinsic escalation rules)
-# ---------------------------------------------------------------------------
-
-
-class ConditionalClassificationRule(BaseModel):
-    """A single rule: if `field` matches `condition`, use `resulting_classification`."""
-
-    field: str
-    condition: str = "in"  # "in", "true", "gt"
-    values: list[str] = Field(default_factory=list)
-    resulting_classification: str
-
-
-class ConditionalClassification(BaseModel):
-    """Offense-intrinsic conditional classification rules.
-
-    Example (§130.86 Luring a child):
-      base classification = ClassE_Felony
-      if intended_underlying_offense_class in [ClassA_I, ClassA_II] → ClassC_Felony
-      if intended_underlying_offense_class in [ClassB, ClassB_Violent] → ClassD_Felony
-      fallback → ClassE_Felony
-
-    Example (§225.90 Manipulation of gaming):
-      base classification = ClassA_Misdemeanor
-      if prior_conviction_same_section_within_years is true → ClassE_Felony
-      fallback → ClassA_Misdemeanor
-    """
-
-    rules: list[ConditionalClassificationRule]
-    fallback: str
-    prompt_fields: list[str] = Field(
-        default_factory=list,
-        description="Which CaseFacts fields the form should prompt for when this offense is selected",
-    )
-
-
-class SentenceOverride(BaseModel):
-    """A sentence parameter override (e.g., max imprisonment cap).
-
-    Example (§260.35 Misrepresentation by caregiver):
-      classification stays ClassA_Misdemeanor, but max imprisonment = 6 months.
-    """
-
-    field: str  # which disposition parameter to override
-    value: float
-    reason: str = ""
-
-
-# ---------------------------------------------------------------------------
 # Input model
 # ---------------------------------------------------------------------------
 

@@ -5,7 +5,7 @@ declarative prosecutorial work product — state what the engine routed to,
 not what the doctrine is. Every number carries its statutory cite so the
 reader can verify against the statute book in one pass.
 
-Run indirectly via sentencing_ui.py (or call render_report directly).
+Called by webapp/bridge.py (or call render_report directly).
 """
 
 from __future__ import annotations

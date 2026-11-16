@@ -37,3 +37,6 @@ data/staging/
 
 # Generated into the data bundle by the admin tool / build (not a source file)
 data/offenses.json
+
+# Legal review files from reviewers (names, emails) — see scripts/import_reviews.py
+reviews/incoming/

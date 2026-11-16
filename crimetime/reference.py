@@ -57,11 +57,6 @@ def reset_data() -> None:
     _sentencing = None
 
 
-def current_data() -> tuple[dict[str, Any], dict[str, Any]]:
-    """Return the (lists, tables) currently in use."""
-    return _load_lists(), _load_sentencing()
-
-
 # ---------------------------------------------------------------------------
 # Lists accessors
 # ---------------------------------------------------------------------------
@@ -75,16 +70,6 @@ def get_offense(section: str) -> Optional[dict[str, Any]]:
 def get_all_offenses() -> dict[str, dict[str, Any]]:
     """Return the full offense metadata dict."""
     return _load_lists().get("offenses", {})
-
-
-def get_axioms() -> dict[str, str]:
-    """Return the axiom documentation dict (for reference, not execution)."""
-    return _load_lists().get("schema", {}).get("axioms", {})
-
-
-def get_constants() -> dict[str, Any]:
-    """Return the constants dict (STAYS_A_I_LIST, STANDARD_DOWNGRADE_TABLE, etc.)."""
-    return _load_lists().get("schema", {}).get("constants", {})
 
 
 # --- VFO_LIST --------------------------------------------------------------
@@ -189,10 +174,6 @@ def get_for_hire_list() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Sentencing tables accessors
 # ---------------------------------------------------------------------------
-
-
-def get_sentencing_tables() -> dict[str, Any]:
-    return _load_sentencing()
 
 
 def get_violation_table() -> dict[str, Any]:

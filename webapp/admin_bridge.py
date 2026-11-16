@@ -473,10 +473,6 @@ def try_case_json(body_json: str) -> str:
     return _call_json(try_case, json.loads(body_json))
 
 
-def offenses_index_json() -> str:
-    return _call_json(offenses_index)
-
-
 # ---------------------------------------------------------------------------
 # Data bundle (what the admin publishes; see docs/HOSTING.md)
 # ---------------------------------------------------------------------------

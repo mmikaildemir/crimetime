@@ -1,7 +1,7 @@
 """Tests for crimetime.legislation — statute fetching and classification parsing.
 
-These tests cover the extracted legislation helpers (formerly inline in
-app.py) and the new list_sections / find_all_classifications functions.
+These tests cover the legislation helpers and the list_sections /
+find_all_classifications functions.
 Where possible we test against cached statute text from data/staging/cache/
 to avoid hitting the live API.
 """

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CrimeTime Legal Review</title>
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+<link rel="icon" type="image/png" href="../assets/nypti-seal.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:wght@500;700&display=swap" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+<link rel="stylesheet" href="../styles.css?v=__BUILD__" />
+<link rel="stylesheet" href="review.css?v=__BUILD__" />
+</head>
+<body>
+
+<div class="test-site-banner" role="alert">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <span><strong>TEST SITE — LEGAL REVIEW.</strong> Your answers stay in this browser until you download them.</span>
+</div>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="seal" href="../" title="Back to CrimeTime">
+      <img src="../assets/nypti-seal.png" width="110" height="110" alt="New York Prosecutors Training Institute seal" />
+    </a>
+    <div class="brand">
+      <div class="org">New York Prosecutors Training Institute</div>
+      <h1 class="title">CrimeTime <span class="ver">Legal Review</span></h1>
+      <div class="tagline">Check each crime: is what the calculator says right?</div>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite">
+      <span class="dot"></span><span id="statusText">Loading crimes…</span>
+    </div>
+  </div>
+  <nav class="site-nav" aria-label="Main">
+    <ul>
+      <li><a href="../"><i class="fa-solid fa-scale-balanced"></i> Calculator</a></li>
+    </ul>
+  </nav>
+  <div class="band"></div>
+</header>
+
+<div class="review-bar">
+  <label class="name-field"><span>Your name</span><input type="text" id="revName" autocomplete="name" placeholder="So we know who checked" /></label>
+  <span class="progress" id="progress"></span>
+  <span class="bar-actions">
+    <label class="btn btn-default btn-sm file-btn" title="Continue from a file you downloaded earlier"><i class="fa-solid fa-folder-open"></i> Continue from file
+      <input type="file" id="importFile" accept=".json,application/json" hidden /></label>
+    <button class="btn btn-navy btn-sm" id="exportBtn" type="button"><i class="fa-solid fa-download"></i> Download my answers</button>
+  </span>
+</div>
+
+<div class="howto" id="howto">
+  <div><strong>How it works:</strong> pick a crime, read what the calculator says about it, and tick
+    <em>Wrong?</em> next to anything that's incorrect, adding a sentence on what it should be.
+    Check as many crimes as you like, in any order. When you're done, click <strong>Download my answers</strong> and email the file back.</div>
+  <button class="btn btn-default btn-sm" id="hideHowto" type="button">Got it</button>
+</div>
+<div id="importMsg" class="import-msg"></div>
+
+<main class="review-layout">
+  <aside class="panel crime-list-panel">
+    <div class="search-wrap">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="search" id="search" placeholder="Search by section or name" autocomplete="off" aria-label="Search crimes" />
+    </div>
+    <div class="filter-row">
+      <select id="filter" aria-label="Show">
+        <option value="all">All crimes</option>
+        <option value="todo">Not checked yet</option>
+        <option value="wrong">Ones I marked wrong</option>
+        <option value="felony">Felonies only</option>
+      </select>
+    </div>
+    <div class="crime-list" id="crimeList" role="list"></div>
+  </aside>
+
+  <article class="panel sheet" id="sheet">
+    <div class="empty-state"><div class="big-icon"><i class="fa-solid fa-gavel"></i></div>
+      <p>Pick a crime on the left to start.</p></div>
+  </article>
+</main>
+
+<script src="review.js?v=__BUILD__"></script>
+</body>
+</html>

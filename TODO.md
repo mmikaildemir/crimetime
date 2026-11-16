@@ -18,15 +18,12 @@
 
 ## Application Features
 - [ ] Build search/filter across offenses, statutes, and rules
-- [ ] Add bulk import from Excel/CSV (bridge extract_crimes.py output into app)
+- [ ] Add bulk import from Excel/CSV
 - [ ] Add scenario builder — compose hypothetical fact patterns and auto-resolve sentencing
 - [ ] Add diff/audit log for schema and data changes
 
 ## Infrastructure
-- [ ] Add proper pyproject.toml dependencies (streamlit, pandas, requests, python-dotenv)
 - [ ] Add .env.example with required keys
-- [ ] Write README.md with setup + architecture docs
-- [ ] Add database migration/versioning strategy
 
 ## Sentencing engine — gaps found during the track/pipeline restructure
 - [ ] PL 70.71(5): §220.77 (operating as a major trafficker, A-I) takes an indeterminate 70.00 sentence, but the drug track gives it the 70.71 determinate range

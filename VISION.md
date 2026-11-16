@@ -10,7 +10,7 @@ There is no single structured, queryable, auditable system that models this data
 
 Build a **normalized legal data model** and **admin console** that:
 
-commi1. Represents the full hierarchy: **Statute → Classification → Modifier → Offense → SentencingRule**
+1. Represents the full hierarchy: **Statute → Classification → Modifier → Offense → SentencingRule**
 2. Resolves the resulting classification when a modifier applies to an offense
 3. Returns the correct sentencing range (imprisonment, fine, probation, etc.) for any (offense, modifier) combination
 4. Tracks legal verification per row — every enhancement rule has a `verified_by` / `verified_date`
@@ -53,14 +53,14 @@ Statutes (NYS Penal Law, VTL, CPL, COR, etc.)
 ## What This Is
 
 - A **data model** for NY criminal sentencing
-- An **admin console** (Streamlit) for building and maintaining that data
-- A **seed system** with verified defaults for enhancement statutes
-- An **export format** (JSON) for downstream consumption
+- A **sentencing decision engine** (`crimetime/`) that reads its rules from the data
+- A **browser admin tool** (`site/admin/`) for keeping that data current, with validation, impact preview and a changelog
+- A **versioned JSON data bundle** (`data/`) that can be replaced without a rebuild
 
 ## What This Is Not
 
 - A legal advice tool — all data must be verified by counsel
-- A production sentencing calculator — it's the data layer, not the decision engine
+- A substitute for counsel's judgment — every output cites its statute so it can be checked
 - A replacement for official NYS legislation sources
 
 ## Iterative Approach
@@ -68,13 +68,13 @@ Statutes (NYS Penal Law, VTL, CPL, COR, etc.)
 Phase 1 — **Foundation**: Populate classifications, modifiers, seed resolution rules, add real offenses
 Phase 2 — **Sentencing**: Complete rules for every (classification, provision_type) pair, add DeterminatePrisonRange subtype
 Phase 3 — **Legal Review**: Attorney sign-off on all enhancement rows, resolve TODO flags
-Phase 4 — **Features**: Search, scenario builder, bulk import from extract_crimes.py output
+Phase 4 — **Features**: Search, scenario builder, bulk import
 Phase 5 — **Hardening**: Audit logging, migration strategy, documentation
 
 ## Key Decisions Already Made
 
-- SQLite for local persistence (simple, portable, no server)
-- Streamlit for admin UI (fast iteration, Python-native)
+- JSON data files (`data/*.json`) as the source of truth: simple, diffable, no server
+- Static site on GitHub Pages running the Python engine in-browser via Pyodide; no backend
 - `classification_resolution` separated from `offense_modifier_eligibility` (cleaner concerns: eligibility vs. tier shift)
 - `verified_by` / `verified_date` columns on classification_resolution for audit trail
 - Seed data idempotent — safe to run repeatedly
