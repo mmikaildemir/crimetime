@@ -167,3 +167,18 @@ def test_for_hire_eligibility_flags_for_the_ui():
     assert flags("125.25") == (False, True)   # attempt only
     assert flags("120.10") == (True, True)
     assert "125.25" in _eligibility("120.05", "")["for_hire_attempt_sections"]
+
+
+# --- Display labels -----------------------------------------------------------
+
+@pytest.mark.parametrize("section,label", [
+    ("160.10", "Indeterminate sentence — 16–25 years to life"),  # 70.08(3)(b)
+    ("130.95", "Indeterminate sentence — 25 years to life"),     # 70.08(3)(a), fixed minimum
+])
+def test_persistent_violent_label(section, label):
+    assert _out(section, 2, 2).available_dispositions[0].label == label
+
+
+def test_one_year_conditional_discharge_is_singular():
+    labels = [d.label for d in _out("120.00").available_dispositions]
+    assert "Conditional discharge for 1 year" in labels

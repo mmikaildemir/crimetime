@@ -401,9 +401,13 @@ class ViolentFelonyTrack(Track):
             if row is None:
                 raise ValueError(f"No 70.08 table entry for {cls_key} (section {ctx.section})")
             min_years = row.get("minYears")
+            if isinstance(min_years, list):
+                min_text = f"{min_years[0]}–{min_years[1]} years"
+            else:  # 70.08(3)(a): a fixed minimum (25 years for 130.95/130.96)
+                min_text = f"{row.get('minYearsFixed', 20)} years"
             return Disposition(
                 type=DispositionType.INDETERMINATE,
-                label=f"Indeterminate sentence — {row.get('minYears', 'life')} to life",
+                label=f"Indeterminate sentence — {min_text} to life",
                 statute_refs=[block["statute"]],
                 term=TermRange(
                     min_value=min_years[0] if isinstance(min_years, list) else row.get("minYearsFixed", 20),
@@ -671,6 +675,10 @@ def _subdivision_override_note(ctx: SentencingContext) -> Optional[str]:
     return f"If convicted under subdivision {subd}, the term is {lo}–{hi} years ({override.get('_ref', '')})"
 
 
+def _years_text(n) -> str:
+    return f"{n} year" if n == 1 else f"{n} years"
+
+
 def _drug_definite_sentence(statute: str) -> Disposition:
     definite = reference.get_dispositions_table().get("felony", {}).get("definiteSentence", {})
     max_months = definite.get("maxMonths", 12)
@@ -791,7 +799,7 @@ def _generate_felony_alternatives(
         alternatives.append(
             Disposition(
                 type=DispositionType.CONDITIONAL_DISCHARGE,
-                label=f"Conditional discharge for {cd['years']} years",
+                label=f"Conditional discharge for {_years_text(cd['years'])}",
                 statute_refs=[cd["statuteRef"]],
                 conditional_discharge_years=cd["years"],
                 record_statement_required=cd.get("recordStatementRequired", False),
@@ -895,7 +903,7 @@ def _generate_misdemeanor_alternatives(
         alternatives.append(
             Disposition(
                 type=DispositionType.CONDITIONAL_DISCHARGE,
-                label=f"Conditional discharge for {cd['years']} years",
+                label=f"Conditional discharge for {_years_text(cd['years'])}",
                 statute_refs=[cd["statuteRef"]],
                 conditional_discharge_years=cd["years"],
                 record_statement_required=cd.get("recordStatementRequired", False),
@@ -930,7 +938,7 @@ def _generate_violation_alternatives() -> list[Disposition]:
         alternatives.append(
             Disposition(
                 type=DispositionType.CONDITIONAL_DISCHARGE,
-                label=f"Conditional discharge for {cd['years']} year(s)",
+                label=f"Conditional discharge for {_years_text(cd['years'])}",
                 statute_refs=[cd["statuteRef"]],
                 conditional_discharge_years=cd["years"],
             )
