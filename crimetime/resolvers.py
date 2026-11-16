@@ -257,8 +257,10 @@ def resolve_attempt_classification(
       6. section == '200.04' AND subdivision == '2' -> ClassB_Felony (bribery 1st subd.2)
       7. else -> standard one-class downgrade per STANDARD_DOWNGRADE_TABLE
     """
-    # Branch 1: stays Class A-I
+    # Branch 1: stays Class A-I (125.26 only for subdivision 1, per 110.05(1))
     if target_section in _STAYS_A_I_SECTIONS:
+        return "ClassA_I_Felony"
+    if target_section == "125.26" and target_subdivision == "1":
         return "ClassA_I_Felony"
 
     # Branch 2: Class A-II stays Class A-II

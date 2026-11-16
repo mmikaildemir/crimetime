@@ -143,6 +143,37 @@ def _determinate(
 
 
 # ---------------------------------------------------------------------------
+# Offense-specific overrides (PL 70.00(3)(a), 70.02(3))
+# ---------------------------------------------------------------------------
+
+
+def offense_override(ctx: SentencingContext) -> Optional[dict]:
+    """The offense-specific override governing this conviction, if any.
+
+    A completed offense uses the entry keyed by its section; an attempt uses
+    only the "attempt_<section>" entry, because the statutes name attempts
+    separately (e.g. 70.02(3)(b)(ii) attempted 120.11, 70.00(3)(a)(i)(C)
+    attempted murder 1st). An entry with "subdivisionOverride" applies only
+    to that subdivision; an entry with "subdivisions" may refine per
+    subdivision.
+    """
+    facts = ctx.case_facts
+    overrides = reference.get_offense_overrides()
+    if facts.is_attempt and facts.attempt_of_section:
+        override = overrides.get(f"attempt_{facts.attempt_of_section}")
+    else:
+        override = overrides.get(ctx.section)
+    if not override:
+        return None
+    only_subd = override.get("subdivisionOverride")
+    if only_subd is not None and facts.subdivision != only_subd:
+        return None
+    if facts.subdivision and "subdivisions" in override:
+        return override["subdivisions"].get(facts.subdivision) or override
+    return override
+
+
+# ---------------------------------------------------------------------------
 # Tracks
 # ---------------------------------------------------------------------------
 
@@ -165,6 +196,11 @@ class Track:
         raise NotImplementedError
 
     def alternatives(self, ctx: SentencingContext) -> list[Disposition]:
+        # A second or persistent offender must be sentenced to imprisonment
+        # (PL 70.06(2), 70.04(2), 70.08(2), 70.10(2)); the PL 60.01
+        # alternatives are only for offenders without a predicate.
+        if ctx.status not in (OffenderStatus.FIRST_OFFENDER, OffenderStatus.NOT_APPLICABLE):
+            return []
         return _generate_felony_alternatives(ctx.classification, ctx.vfo, ctx.case_facts)
 
     def status_label(self, status: OffenderStatus) -> str:
@@ -255,6 +291,42 @@ class DrugFelonyTrack(Track):
         row = _row(block, self.table, status, class_key(ctx.classification), ctx.section)
         return _determinate(block, row)
 
+    def alternatives(self, ctx):
+        """Drug felonies have their own alternatives, which survive a
+        non-violent predicate (70.70(3)(c)-(e)) but not a violent one
+        (70.70(4), 70.71(4): determinate sentence only)."""
+        status = ctx.status
+        cls = class_key(ctx.classification)
+        second = status == OffenderStatus.SECOND_FELONY_DRUG_OFFENDER
+        if status == OffenderStatus.SECOND_FELONY_DRUG_OFFENDER_PRIOR_VFO:
+            return []
+        if cls == "ClassA_I":
+            return []
+        if cls == "ClassA_II":
+            return [_lifetime_probation("PL 70.71(3)(c), 65.00" if second else "PL 70.71(2)(c), 65.00")]
+
+        if not second:
+            # 70.70(2)(b)-(c): the usual alternatives, with the alternative
+            # definite sentence extended to class B and C drug felonies.
+            alts = [
+                d for d in _generate_felony_alternatives(ctx.classification, False, ctx.case_facts)
+                if d.type != DispositionType.DEFINITE
+            ]
+            return [_drug_definite_sentence("PL 70.70(2)(c)"), *alts]
+
+        # 70.70(3): second felony drug offender, non-violent predicate.
+        if cls == "ClassB":
+            return [_lifetime_probation("PL 70.70(3)(c), 65.00")]
+        alts = [_drug_definite_sentence("PL 70.70(3)(e)")]
+        alts += [
+            d for d in _generate_felony_alternatives(ctx.classification, False, ctx.case_facts)
+            if d.type == DispositionType.SPLIT
+        ]
+        probation = _probation_from_table()
+        probation.statute_refs = ["PL 70.70(3)(c), 65.00"]
+        alts.append(probation)
+        return alts
+
 
 class SexOffenseFelonyTrack(Track):
     """PL 70.80 — determinate sentences with sex-offense PRS (70.45(2-a)) for
@@ -306,9 +378,11 @@ class ViolentFelonyTrack(Track):
         if not ctx.vfo:  # 130.95/130.96 special case — only reached as 70.08
             return OffenderStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08
         if prior.predicate_vfos >= 2:
-            # PL 70.08(3) has no Class E provision — fall back to 70.02.
+            # PL 70.08(3) has no Class E provision. Two violent predicates
+            # still satisfy 70.04(1) (one or more), so sentence as a second
+            # violent felony offender under 70.04(3)(d).
             if ctx.classification in ("ClassE_Felony", "ClassE_Violent_Felony"):
-                return OffenderStatus.FIRST_OFFENDER
+                return OffenderStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04
             return OffenderStatus.PERSISTENT_VIOLENT_FELONY_OFFENDER_70_08
         if prior.predicate_vfos == 1:
             return OffenderStatus.SECOND_VIOLENT_FELONY_OFFENDER_70_04
@@ -341,13 +415,16 @@ class ViolentFelonyTrack(Track):
         # 70.02(3) offense-specific elevated determinate ranges apply only to
         # the first violent felony offender.
         if status == OffenderStatus.FIRST_OFFENDER:
-            override = reference.get_offense_overrides().get(ctx.section, {})
+            override = offense_override(ctx) or {}
             if "determinateOverride" in override:
                 return _determinate(
                     block, row,
                     term=override["determinateOverride"],
                     statute=override.get("_ref", row.get("statute", block["statute"])),
                 )
+            disp, prs = _determinate(block, row)
+            disp.conditions = _subdivision_override_note(ctx)
+            return disp, prs
         return _determinate(block, row)
 
 
@@ -580,6 +657,51 @@ def _resolve_primary_violation_disposition() -> Disposition:
 
 
 
+def _subdivision_override_note(ctx: SentencingContext) -> Optional[str]:
+    """When an elevated range applies to only one subdivision and the user
+    didn't give a subdivision, say so instead of guessing."""
+    facts = ctx.case_facts
+    if facts.subdivision or facts.is_attempt:
+        return None
+    override = reference.get_offense_overrides().get(ctx.section, {})
+    subd = override.get("subdivisionOverride")
+    if subd is None or "determinateOverride" not in override:
+        return None
+    lo, hi = override["determinateOverride"]
+    return f"If convicted under subdivision {subd}, the term is {lo}–{hi} years ({override.get('_ref', '')})"
+
+
+def _drug_definite_sentence(statute: str) -> Disposition:
+    definite = reference.get_dispositions_table().get("felony", {}).get("definiteSentence", {})
+    max_months = definite.get("maxMonths", 12)
+    return Disposition(
+        type=DispositionType.DEFINITE,
+        label=f"Definite sentence up to {max_months} months",
+        statute_refs=[statute],
+        term=TermRange(min_value=0, max_value=max_months, unit=TermUnit.MONTHS),
+        conditions=definite.get("conditions"),
+    )
+
+
+def _probation_from_table() -> Disposition:
+    probation = reference.get_dispositions_table().get("felony", {}).get("probation", {})
+    return Disposition(
+        type=DispositionType.PROBATION,
+        label=f"Probation for {', '.join(str(y) for y in probation['years'])} years",
+        statute_refs=[probation["statuteRef"]],
+        probation_years=probation["years"],
+        conditions=probation.get("conditions"),
+    )
+
+
+def _lifetime_probation(statute: str) -> Disposition:
+    return Disposition(
+        type=DispositionType.PROBATION,
+        label="Lifetime probation",
+        statute_refs=[statute],
+    )
+
+
 def _generate_felony_alternatives(
     classification: str,
     is_vfo: bool,
@@ -588,8 +710,8 @@ def _generate_felony_alternatives(
     """Generate alternative dispositions for a felony from the dispositions table.
 
     Gated by classification per statute:
-      - Definite sentence (PL 70.00(4)): Class D/E felonies only, for a
-        non-second/persistent offender.
+      - Definite sentence (PL 70.00(4)): Class D/E felonies only. Callers
+        only ask for alternatives for offenders without a predicate.
       - Intermittent (PL 85.00(2)): Class D/E felonies or non-felonies only.
       - Probation (PL 60.05(2)/65.00(1)(a)): NOT available for Class A felonies
         (60.05(2) requires imprisonment per 70.00 for Class A).
@@ -661,15 +783,7 @@ def _generate_felony_alternatives(
     # Probation (PL 65.00) — NOT for Class A felonies per PL 60.05(2)
     probation = fel.get("probation", {})
     if probation.get("eligible") and not is_class_a:
-        alternatives.append(
-            Disposition(
-                type=DispositionType.PROBATION,
-                label=f"Probation for {', '.join(str(y) for y in probation['years'])} years",
-                statute_refs=[probation["statuteRef"]],
-                probation_years=probation["years"],  # full list of options
-                conditions=probation.get("conditions"),
-            )
-        )
+        alternatives.append(_probation_from_table())
 
     # Conditional Discharge (PL 65.05) — NOT for Class A felonies per PL 60.01(2)
     cd = fel.get("conditionalDischarge", {})

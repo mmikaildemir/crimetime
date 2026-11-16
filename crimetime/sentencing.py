@@ -21,6 +21,8 @@ Every stage appends TraceStep records, so the output explains itself.
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -46,7 +48,7 @@ from .resolvers import (
     resolve_attempt_classification,
     resolve_vfo_of_attempt,
 )
-from .tracks import Track, select_track
+from .tracks import Track, offense_override, select_track
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +264,10 @@ def _adjust_terrorism_lwop(ctx: SentencingContext) -> Optional[str]:
     return "Terrorism Class A-I: life without parole"
 
 
+# The plain "N–M years to life" label; other labels (e.g. 70.10) are left alone.
+_STANDARD_LIFE_LABEL = re.compile(r"^Indeterminate sentence — [\d.]+–[\d.]+ years to life$")
+
+
 def _adjust_offense_overrides(ctx: SentencingContext) -> Optional[str]:
     """Offense-specific overrides (PL 70.00(3)(a)), e.g. §125.27 20-25yr
     minimum, §125.26 life without parole; attempt-specific overrides
@@ -269,18 +275,13 @@ def _adjust_offense_overrides(ctx: SentencingContext) -> Optional[str]:
     terrorism = ctx.modifier("terrorism")
     if terrorism and terrorism.branch == "life_without_parole":
         return None
-    facts = ctx.case_facts
-    overrides = reference.get_offense_overrides()
-    override = overrides.get(ctx.section)
-    if not override and facts.is_attempt and facts.attempt_of_section:
-        override = overrides.get(f"attempt_{facts.attempt_of_section}")
-    if not override:
+    # Juvenile offenders are sentenced under PL 70.05, not 70.00(3)(a).
+    if ctx.track.name == "juvenile_offender":
         return None
-
-    subd_override = None
-    if facts.subdivision and "subdivisions" in override:
-        subd_override = override["subdivisions"].get(facts.subdivision)
-    effective = subd_override or override
+    facts = ctx.case_facts
+    effective = offense_override(ctx)
+    if not effective:
+        return None
 
     if effective.get("lifeWithoutParole"):
         ctx.dispositions = [Disposition(
@@ -290,15 +291,21 @@ def _adjust_offense_overrides(ctx: SentencingContext) -> Optional[str]:
             conditions=f"Offense-specific override for §{ctx.section}" + (f" subd {facts.subdivision}" if facts.subdivision else ""),
         )]
         return f"Offense-specific override for §{ctx.section}: life without parole"
-    if "minYears" in effective and ctx.dispositions:
+    # Minimum-period overrides (70.00(3)(a)) only shape a class A sentence;
+    # an attempt that drops below class A keeps its own range.
+    primary = ctx.dispositions[0] if ctx.dispositions else None
+    is_class_a = ctx.classification in ("ClassA_I_Felony", "ClassA_II_Felony")
+    if "minYears" in effective and is_class_a and primary and primary.type == DispositionType.INDETERMINATE:
         min_override = effective["minYears"]
-        primary = ctx.dispositions[0]
         if primary.term:
             primary.term = TermRange(
                 min_value=max(primary.term.min_value, min_override[0]),
                 max_value=max(primary.term.max_value, min_override[1]),
                 unit=primary.term.unit,
             )
+            if _STANDARD_LIFE_LABEL.match(primary.label):
+                primary.label = f"Indeterminate sentence — {min_override[0]}–{min_override[1]} years to life"
+            primary.statute_refs = [effective.get("_ref", "PL 70.00(3)(a)")]
         return f"Offense-specific override for §{ctx.section}: minimum {min_override[0]}–{min_override[1]} years"
     return None
 

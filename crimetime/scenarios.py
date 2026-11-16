@@ -54,9 +54,10 @@ def scenarios(sections: Iterable[str] | None = None) -> Iterator[tuple[str, str,
     for section in wanted:
         is_crime = offenses[section].get("classification") != "Violation"
         priors = PRIOR_PATTERNS if is_crime else [(0, 0)]
+        override = overrides.get(section, {})
+        only_subd = override.get("subdivisionOverride")
         subdivisions = [None] + sorted(
-            set(overrides.get(section, {}).get("subdivisions", {}))
-            | set(overrides.get(section, {}).get("subdivisionOverride", {}))
+            set(override.get("subdivisions", {})) | ({only_subd} if only_subd else set())
         )
         for prior in priors:
             for vname, extra in VARIANTS.items():

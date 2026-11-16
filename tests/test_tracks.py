@@ -51,9 +51,16 @@ def test_derived_status(section, felonies, vfos, track, status):
     assert _status(section, felonies, vfos) == (track, status)
 
 
-def test_class_e_vfo_has_no_70_08_range():
-    # 240.55 is a class E VFO; PL 70.08(3) has no class E provision, so 70.02 applies.
-    assert _status("240.55", 2, 2) == ("violent_felony", S.FIRST_OFFENDER)
+def test_class_e_vfo_with_two_violent_predicates_drops_to_70_04():
+    # 240.55 is a class E VFO; PL 70.08(3) has no class E provision, so the
+    # defendant is sentenced as a second violent felony offender (70.04(3)(d)).
+    assert _status("240.55", 2, 2) == ("violent_felony", S.SECOND_VIOLENT_FELONY_OFFENDER_70_04)
+    out = resolve("240.55", CaseFacts(
+        section="240.55", prior_record=PriorRecord(predicate_felonies=2, predicate_vfos=2),
+    ))
+    det = [d for d in out.available_dispositions if d.type.value == "determinate"]
+    assert len(det) == 1
+    assert (det[0].term.min_value, det[0].term.max_value) == (3, 4)
 
 
 def test_juvenile_offender_track_ignores_priors():

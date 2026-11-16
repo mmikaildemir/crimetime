@@ -30,6 +30,10 @@
       "determinateOverride": [10, 30],
       "_ref": "PL 70.02(3)(a)(i) — aggravated assault upon a police officer/peace officer: B 10-30yr (vs standard 5-25)"
     },
+    "attempt_120.11": {
+      "determinateOverride": [7, 20],
+      "_ref": "PL 70.02(3)(b)(ii) — attempted aggravated assault upon a police officer/peace officer: C 7-20yr (vs standard 3.5-15)"
+    },
     "125.22": {"determinateOverride": [10, 30], "_ref": "PL 70.02(3)(a)(ii) — aggravated manslaughter 1st: B 10-30yr (vs standard 5-25)"},
     "125.21": {"determinateOverride": [7, 20], "_ref": "PL 70.02(3)(b)(i) — aggravated manslaughter 2nd: C 7-20yr (vs standard 3.5-15)"},
     "125.11": {
@@ -331,7 +335,7 @@
         "_notes": [
           "Indeterminate sentence; maximum term is life imprisonment per PL 70.08(2). Minimum period fixed by court within statutory range per 70.08(3). Source: verbatim from provided PL 70.08 text.",
           "SUNSET: Two versions of 70.08(3) exist. Pre-sunset (current, effective until September 1, 2027) has higher minimums. Post-sunset (effective September 1, 2027) has lower minimums. Both encoded below.",
-          "Class E violent felony: NO provision in PL 70.08(3). Statute only covers ClassA_II, ClassB, ClassC, ClassD. Persistent violent felony offender status for ClassE VFO -- gap; flag for legal research."
+          "Class E violent felony: NO provision in PL 70.08(3). Statute only covers ClassA_II, ClassB, ClassC, ClassD. A ClassE VFO with two or more violent predicates is sentenced as a second violent felony offender under PL 70.04(3)(d) (tracks.ViolentFelonyTrack.derive_status)."
         ],
         "versions": {
           "preSunset_until_2027_09_01": {
