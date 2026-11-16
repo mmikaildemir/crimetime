@@ -306,8 +306,13 @@ function renderCaseFacts(d) {
   let adv = `
     <label class="check-row"><input type="checkbox" id="cf_dwi"> DWI offense <span class="hint">PL 60.21</span></label>
     <label class="check-row"><input type="checkbox" id="cf_other_sent"> Defendant under other sentence &gt; 15 days</label>
-    <label class="check-row"><input type="checkbox" id="cf_restitution"> Victim seeking restitution</label>
-    <label class="check-row"><input type="checkbox" id="cf_for_hire"> Victim is for-hire vehicle operator <span class="hint">PL 60.07</span></label>`;
+    <label class="check-row"><input type="checkbox" id="cf_restitution"> Victim seeking restitution</label>`;
+  // PL 60.07(2)(a): shown only while the current completed/attempt choice
+  // is a specified offense (see wireForHire).
+  if (e.is_felony) {
+    adv += `
+    <label class="check-row" id="for_hire_row" hidden><input type="checkbox" id="cf_for_hire"> Victim is for-hire vehicle operator <span class="hint">PL 60.07</span></label>`;
+  }
   if (e.is_felony || e.is_misdemeanor) {
     const ageOpts = e.yo_eligible
       ? `<option value="adult">Adult</option><option value="youthful_offender_eligible">Youthful offender eligible</option><option value="juvenile_offender">Juvenile offender</option>`
@@ -319,6 +324,30 @@ function renderCaseFacts(d) {
   wireToggle('cf_attempt', 'attempt_extra');
   wireToggle('cf_conspiracy', 'conspiracy_extra');
   wireToggle('cf_armed_plea', 'armed_extra');
+  wireForHire(d);
+}
+
+// Show the for-hire checkbox only when the conviction as currently described
+// (completed offense, or attempt of the target section) is a PL 60.07(2)(a)
+// specified offense; untick it when it stops applying.
+function wireForHire(d) {
+  const row = document.getElementById('for_hire_row');
+  const box = document.getElementById('cf_for_hire');
+  if (!row || !box) return;
+  const e = d.eligibility;
+  const attempt = document.getElementById('cf_attempt');
+  const target = document.getElementById('cf_attempt_of');
+  const attemptSections = e.for_hire_attempt_sections || [];
+  const update = () => {
+    const ok = attempt?.checked
+      ? attemptSections.includes((target?.value || d.section).trim())
+      : !!e.for_hire_eligible;
+    row.hidden = !ok;
+    if (!ok) box.checked = false;
+  };
+  attempt?.addEventListener('change', update);
+  target?.addEventListener('input', update);
+  update();
 }
 
 function wireToggle(triggerId, targetId) {
@@ -523,7 +552,7 @@ function refs(list, prefix = '') {
 function dispositionCard(d, isPrimary) {
   const card = el('div', 'card disposition' + (isPrimary ? ' primary' : ''));
   const row = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
-  let html = `<div class="card-label">${isPrimary ? '<span class="label label-primary">Recommended</span> ' : ''}${escapeHtml(humanize(d.type))}</div>`;
+  let html = `<div class="card-label">${escapeHtml(humanize(d.type))}</div>`;
   html += `<div class="card-title">${escapeHtml(d.label)}</div>`;
   if (d.term) html += row('Term', escapeHtml(formatTerm(d.term)));
   if (d.prs) html += row('Post-release supervision', `${d.prs.min_years}–${d.prs.max_years} years`);

@@ -152,7 +152,7 @@ def _render_classification_route(out: SentencingOutput) -> str:
 
 def _render_disposition_block(d: Disposition, is_primary: bool) -> str:
     dtype_label = _DISPOSITION_TYPE_LABEL.get(d.type, d.type.value)
-    prefix = "**Recommended**" if is_primary else "Alternative"
+    prefix = "**Primary**" if is_primary else "Alternative"
     # Labels usually already start with the type ("Indeterminate sentence — …").
     heading = d.label if d.label.lower().startswith(dtype_label.lower()) else f"{dtype_label} — {d.label}"
     lines = [f"{prefix} · {heading}"]
@@ -183,7 +183,7 @@ def _render_disposition_block(d: Disposition, is_primary: bool) -> str:
 def _render_dispositions(out: SentencingOutput) -> str:
     if not out.available_dispositions:
         return ""
-    lines = ["## 3. Recommended Disposition", ""]
+    lines = ["## 3. Primary Disposition", ""]
     primary = out.available_dispositions[0]
     lines.append(_render_disposition_block(primary, is_primary=True))
     lines.append("")

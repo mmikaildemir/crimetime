@@ -335,7 +335,8 @@ def _adjust_for_hire(ctx: SentencingContext) -> Optional[str]:
     if not is_for_hire_eligible(
         ctx.section, is_attempt=facts.is_attempt, attempt_of_section=facts.attempt_of_section
     ):
-        return None
+        what = f"attempted §{facts.attempt_of_section}" if facts.is_attempt else f"§{ctx.section}"
+        return f"For-hire enhancement not applied: {what} is not a specified offense under PL 60.07(2)(a)"
     if not ctx.dispositions:
         return None
     primary = ctx.dispositions[0]

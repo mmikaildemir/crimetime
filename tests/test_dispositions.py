@@ -116,7 +116,8 @@ def test_murder_first_label_shows_override_minimum():
 def test_report_does_not_repeat_disposition_type():
     md = render_report(_out("200.22", 1, 1))
     assert "Indeterminate sentence — Indeterminate sentence" not in md
-    assert "**Recommended** · Indeterminate sentence — max 6–15 years" in md
+    assert "**Primary** · Indeterminate sentence — max 6–15 years" in md
+    assert "Recommended" not in md
 
 
 # --- Hate crimes (PL 485.10) ------------------------------------------------
@@ -150,3 +151,19 @@ def test_for_hire_label_shows_raised_minimum():
     d = _out("120.06", victim_is_for_hire_operator=True).available_dispositions[0]
     assert d.term.min_value == 6.5
     assert d.label.startswith("Determinate sentence of 6.5–15 years")
+
+
+def test_for_hire_on_ineligible_offense_explains_why():
+    out = _out("120.05", victim_is_for_hire_operator=True)
+    assert _primary(out) == (2, 7)  # unchanged
+    assert "not a specified offense under PL 60.07(2)(a)" in out.trace[-1].detail
+
+
+def test_for_hire_eligibility_flags_for_the_ui():
+    from webapp.bridge import _eligibility
+    flags = lambda s: (_eligibility(s, "")["for_hire_eligible"], _eligibility(s, "")["for_hire_attempt_eligible"])
+    assert flags("120.05") == (False, False)
+    assert flags("120.06") == (True, False)   # completed only
+    assert flags("125.25") == (False, True)   # attempt only
+    assert flags("120.10") == (True, True)
+    assert "125.25" in _eligibility("120.05", "")["for_hire_attempt_sections"]

@@ -343,7 +343,6 @@ input[type="checkbox"] { accent-color: var(--navy); width: 16px; height: 16px; m
   border-radius: .3em;
   white-space: nowrap;
 }
-.label-primary { background: var(--navy); }
 .label-success { background: var(--success); }
 .label-warning { background: #b58a3a; }
 .label-danger { background: var(--danger); }

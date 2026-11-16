@@ -20,11 +20,12 @@ from crimetime.models import (
     PriorRecord,
     PriorRecordStatus,
 )
-from crimetime.reference import get_all_offenses
+from crimetime.reference import get_all_offenses, get_for_hire_list
 from crimetime.report import render_report
 from crimetime.resolvers import (
     has_predicate_exposure,
     is_felony,
+    is_for_hire_eligible,
     is_hatecrime_eligible,
     is_misdemeanor,
     is_smf_eligible,
@@ -85,6 +86,11 @@ def _eligibility(section: str, classification: str) -> dict:
         "armed_eligible": is_fel,
         "yo_eligible": is_yo_eligible(classification),
         "predicate_exposure": has_predicate_exposure(classification),
+        # PL 60.07(2)(a) lists completed offenses and attempts separately.
+        "for_hire_eligible": is_for_hire_eligible(section),
+        "for_hire_attempt_eligible": is_for_hire_eligible(section, True, section),
+        # The attempt target is editable, so the UI re-checks it against this list.
+        "for_hire_attempt_sections": sorted(get_for_hire_list().get("attemptOfSections", [])),
     }
 
 
