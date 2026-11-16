@@ -47,10 +47,15 @@ class TestPL12002BasicCase:
         assert det.prs.min_years == 1.5
         assert det.prs.max_years == 3
 
-    def test_no_alternatives_for_vfo(self, output):
-        """PL 60.05(4) mandates determinate for VFOs — no split/probation/CD/UD."""
+    def test_class_d_vfo_keeps_class_d_alternatives(self, output):
+        """PL 70.02(2)(b): a class D VFO is sentenced under the class D rules;
+        only a state-prison sentence must be determinate. (60.05(4) covers
+        class C, not class D.)"""
         alt_types = {d.type.value for d in output.available_dispositions[1:]}
-        assert alt_types == set(), f"VFO should have no alternatives, got: {alt_types}"
+        assert alt_types == {
+            "definite", "intermittent", "split", "probation",
+            "conditional_discharge", "unconditional_discharge",
+        }
 
     def test_fine(self, output):
         """#13: Fine up to $5,000 or double gain."""

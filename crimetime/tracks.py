@@ -201,7 +201,7 @@ class Track:
         # alternatives are only for offenders without a predicate.
         if ctx.status not in (OffenderStatus.FIRST_OFFENDER, OffenderStatus.NOT_APPLICABLE):
             return []
-        return _generate_felony_alternatives(ctx.classification, ctx.vfo, ctx.case_facts)
+        return _first_offender_felony_alternatives(ctx)
 
     def status_label(self, status: OffenderStatus) -> str:
         if self.table:
@@ -225,6 +225,12 @@ class JuvenileOffenderTrack(Track):
             and ctx.case_facts.defendant_age_category == AgeCategory.JUVENILE_OFFENDER
             and class_key(ctx.classification) in ("ClassA_I", "ClassB", "ClassC", "ClassD")
         )
+
+    def alternatives(self, ctx):
+        # PL 60.10: a juvenile offender is sentenced to imprisonment under
+        # 70.05 (or as a youthful offender under 60.02), notwithstanding any
+        # other law — no 60.01 alternatives.
+        return []
 
     def primary(self, ctx, status):
         block = _status_block(self.table, status)
@@ -309,7 +315,7 @@ class DrugFelonyTrack(Track):
             # 70.70(2)(b)-(c): the usual alternatives, with the alternative
             # definite sentence extended to class B and C drug felonies.
             alts = [
-                d for d in _generate_felony_alternatives(ctx.classification, False, ctx.case_facts)
+                d for d in _generate_felony_alternatives(ctx.classification, ctx.case_facts)
                 if d.type != DispositionType.DEFINITE
             ]
             return [_drug_definite_sentence("PL 70.70(2)(c)"), *alts]
@@ -319,7 +325,7 @@ class DrugFelonyTrack(Track):
             return [_lifetime_probation("PL 70.70(3)(c), 65.00")]
         alts = [_drug_definite_sentence("PL 70.70(3)(e)")]
         alts += [
-            d for d in _generate_felony_alternatives(ctx.classification, False, ctx.case_facts)
+            d for d in _generate_felony_alternatives(ctx.classification, ctx.case_facts)
             if d.type == DispositionType.SPLIT
         ]
         probation = _probation_from_table()
@@ -355,8 +361,8 @@ class SexOffenseFelonyTrack(Track):
         return _determinate(block, row)
 
     def alternatives(self, ctx):
-        # 70.80 sentences are gated like a VFO's: no 60.01 alternatives.
-        return _generate_felony_alternatives(ctx.classification, True, ctx.case_facts)
+        # 70.80 sentences get no 60.01 alternatives.
+        return []
 
 
 class ViolentFelonyTrack(Track):
@@ -715,9 +721,112 @@ def _lifetime_probation(statute: str) -> Disposition:
     )
 
 
+# PL 60.05(4): these class C felonies "must be sentenced to imprisonment in
+# accordance with section 70.00" — no 60.01 alternatives.
+_PL_60_05_4_SECTIONS = frozenset({"190.42", "200.22", "200.27", "230.30", "150.10"})
+_PL_60_05_4_ATTEMPTS = frozenset({"200.04", "200.12", "105.15", "145.12", "230.32"})
+
+# PL 60.05(5): these class D felonies "must be sentenced in accordance with
+# section 70.00 or 85.00" — imprisonment (incl. a 70.00(4) definite sentence)
+# or intermittent imprisonment, but no probation, split sentence or discharge.
+_PL_60_05_5_SECTIONS = frozenset({"120.05", "121.12"})
+_PL_60_05_5_ATTEMPTS = frozenset({"230.30"})
+
+# PL 70.02(2)(b-1): menacing a police or peace officer — determinate only.
+_PL_70_02_2_B1_SECTIONS = frozenset({"120.18"})
+
+# PL 70.02(2)(c): determinate, or a definite sentence of no less than one year.
+_PL_70_02_2_C_SECTIONS = frozenset({"265.11", "265.50"})
+_PL_70_02_2_C_265_02_SUBDIVISIONS = frozenset({"5", "7", "8", "9"})
+
+
+def _is_named(ctx: SentencingContext, sections: frozenset, attempts: frozenset = frozenset()) -> bool:
+    """True if the conviction is one of `sections`, or an attempt of one of `attempts`."""
+    facts = ctx.case_facts
+    if facts.is_conspiracy:
+        return False
+    if facts.is_attempt:
+        return facts.attempt_of_section in attempts
+    return ctx.section in sections
+
+
+def _is_70_02_2_c_offense(ctx: SentencingContext) -> bool:
+    """PL 70.02(2)(c): 265.02(5)/(7)/(8)/(9) (completed, or attempted as a class
+    E VFO), 265.11 and 265.50."""
+    facts = ctx.case_facts
+    target = facts.attempt_of_section if facts.is_attempt else ctx.section
+    if facts.is_conspiracy:
+        return False
+    if target == "265.02":
+        return facts.subdivision in _PL_70_02_2_C_265_02_SUBDIVISIONS
+    return not facts.is_attempt and target in _PL_70_02_2_C_SECTIONS
+
+
+def _first_offender_felony_alternatives(ctx: SentencingContext) -> list[Disposition]:
+    """The 60.01 alternatives for a felony offender without a predicate,
+    after the offense-specific limits of PL 60.05 and 70.02(2)."""
+    cls = class_key(ctx.classification)
+    alts = _generate_felony_alternatives(ctx.classification, ctx.case_facts)
+
+    if ctx.vfo:
+        # 70.02(2)(a): class B/C VFOs "must be a determinate sentence of
+        # imprisonment" (routed there by 60.05(3)/(4)). The only carve-outs
+        # are 60.05(6) (predicate offenders) and 70.02(4)(b) (armed-felony
+        # plea mitigation), handled elsewhere / as ExceptionPaths.
+        if cls in ("ClassB", "ClassC"):
+            return []
+        # 70.02(2)(b-1): menacing a police or peace officer — determinate only.
+        if _is_named(ctx, _PL_70_02_2_B1_SECTIONS):
+            return []
+        # 70.02(2)(c): certain weapon offenses.
+        if _is_70_02_2_c_offense(ctx):
+            return _pl_70_02_2_c_alternatives(alts)
+        # 70.02(2)(b): other class D VFOs follow the class D rules; only a
+        # state-prison sentence must be determinate. Class E VFOs likewise
+        # keep the class E alternatives. Fall through to 60.05(5).
+
+    # 60.05(4): listed class C felonies — imprisonment under 70.00 only.
+    if cls == "ClassC" and _is_named(ctx, _PL_60_05_4_SECTIONS, _PL_60_05_4_ATTEMPTS):
+        return []
+
+    # 60.05(5): listed class D felonies — 70.00 or 85.00 only.
+    if cls == "ClassD" and _is_named(ctx, _PL_60_05_5_SECTIONS, _PL_60_05_5_ATTEMPTS):
+        allowed = (DispositionType.DEFINITE, DispositionType.INTERMITTENT)
+        return [d for d in alts if d.type in allowed]
+
+    return alts
+
+
+def _pl_70_02_2_c_alternatives(alts: list[Disposition]) -> list[Disposition]:
+    """70.02(2)(c): a determinate sentence or a definite sentence of no less
+    than one year. Under 70.02(2)(c)(i) the court may impose any other
+    authorized sentence only on a defendant with no class A misdemeanor
+    conviction in the five years before the offense, and only on a finding
+    on the record."""
+    finding = (
+        "Only under PL 70.02(2)(c)(i): no class A misdemeanor conviction in the five "
+        "years before the offense, and the court finds on the record that a determinate "
+        "or one-year definite sentence would be unduly harsh and that this sentence is "
+        "consistent with public safety and does not deprecate the seriousness of the crime"
+    )
+    result: list[Disposition] = []
+    for d in alts:
+        if d.type == DispositionType.DEFINITE:
+            # A direct alternative under 70.02(2)(c), not a 70.00(4) sentence,
+            # so the 70.00(4) finding does not apply.
+            d.label = "Definite sentence of 1 year"
+            d.statute_refs = ["PL 70.02(2)(c)"]
+            d.term = TermRange(min_value=12, max_value=12, unit=TermUnit.MONTHS)
+            d.conditions = None
+        else:
+            d.statute_refs = [*d.statute_refs, "PL 70.02(2)(c)(i)"]
+            d.conditions = f"{d.conditions}; {finding}" if d.conditions else finding
+        result.append(d)
+    return result
+
+
 def _generate_felony_alternatives(
     classification: str,
-    is_vfo: bool,
     case_facts: CaseFacts,
 ) -> list[Disposition]:
     """Generate alternative dispositions for a felony from the dispositions table.
@@ -728,20 +837,13 @@ def _generate_felony_alternatives(
       - Intermittent (PL 85.00(2)): Class D/E felonies or non-felonies only.
       - Probation (PL 60.05(2)/65.00(1)(a)): NOT available for Class A felonies
         (60.05(2) requires imprisonment per 70.00 for Class A).
+
+    Offense-specific limits (VFOs, PL 60.05(4)/(5)) are applied by
+    _first_offender_felony_alternatives.
     """
     disp_table = reference.get_dispositions_table()
     fel = disp_table.get("felony", {})
     alternatives: list[Disposition] = []
-
-    # VFOs: PL 70.02(2)(a) mandates a determinate sentence for class B/C VFOs
-    # ("must be a determinate sentence of imprisonment"), and PL 60.05(3)/(4)
-    # route class B/C VFOs to 70.02. The 60.01 alternatives (split/probation/CD/UD/
-    # definite/intermittent) are not "a determinate sentence of imprisonment"
-    # within the meaning of 70.02(2)(a), so none apply. The only statutory
-    # carve-outs are 60.05(6) (second/persistent offender routing) and
-    # 70.02(4)(b) (armed-felony plea mitigation) — both handled as ExceptionPaths.
-    if is_vfo:
-        return alternatives
 
     # Class letter for gating
     cls_letter = class_key(classification)
