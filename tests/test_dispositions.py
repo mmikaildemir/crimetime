@@ -182,3 +182,8 @@ def test_persistent_violent_label(section, label):
 def test_one_year_conditional_discharge_is_singular():
     labels = [d.label for d in _out("120.00").available_dispositions]
     assert "Conditional discharge for 1 year" in labels
+
+
+def test_one_year_probation_is_singular():
+    labels = [d.label for d in _out("270.10").available_dispositions]  # class B misdemeanor
+    assert "Probation for 1 year" in labels

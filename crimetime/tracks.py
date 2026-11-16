@@ -679,6 +679,11 @@ def _years_text(n) -> str:
     return f"{n} year" if n == 1 else f"{n} years"
 
 
+def _years_list_text(years: list) -> str:
+    """[3, 4, 5] -> "3, 4, 5 years"; [1] -> "1 year"."""
+    return f"{', '.join(str(y) for y in years)} {'year' if years == [1] else 'years'}"
+
+
 def _drug_definite_sentence(statute: str) -> Disposition:
     definite = reference.get_dispositions_table().get("felony", {}).get("definiteSentence", {})
     max_months = definite.get("maxMonths", 12)
@@ -695,7 +700,7 @@ def _probation_from_table() -> Disposition:
     probation = reference.get_dispositions_table().get("felony", {}).get("probation", {})
     return Disposition(
         type=DispositionType.PROBATION,
-        label=f"Probation for {', '.join(str(y) for y in probation['years'])} years",
+        label=f"Probation for {_years_list_text(probation['years'])}",
         statute_refs=[probation["statuteRef"]],
         probation_years=probation["years"],
         conditions=probation.get("conditions"),
@@ -890,7 +895,7 @@ def _generate_misdemeanor_alternatives(
         alternatives.append(
             Disposition(
                 type=DispositionType.PROBATION,
-                label=f"Probation for {', '.join(str(y) for y in probation['years'])} years",
+                label=f"Probation for {_years_list_text(probation['years'])}",
                 statute_refs=[probation["statuteRef"]],
                 probation_years=probation["years"],
                 conditions=probation.get("conditions"),
