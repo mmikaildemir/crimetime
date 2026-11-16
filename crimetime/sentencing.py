@@ -217,14 +217,25 @@ def _hate_floor_statute(ctx: SentencingContext, class_b: dict) -> Optional[str]:
     return class_b.get("floorByStatus", {}).get(ctx.track.name, {}).get(ctx.status.value)
 
 
+# Labels whose first number is the term's lower bound, e.g. "Determinate
+# sentence of 5–25 years", "Indeterminate sentence — max 3–25 years, ...",
+# "Indeterminate sentence — 15–25 years to life".
+_TERM_LABEL = re.compile(r"^(Determinate sentence of |Indeterminate sentence — (?:max )?)([\d.]+)(–)")
+
+
+def _years(value: float) -> str:
+    return f"{value:g}"
+
+
 def _raise_primary_min(ctx: SentencingContext, floor: float) -> None:
     primary = ctx.dispositions[0]
-    if primary.term:
+    if primary.term and floor > primary.term.min_value:
         primary.term = TermRange(
-            min_value=max(primary.term.min_value, floor),
+            min_value=floor,
             max_value=primary.term.max_value,
             unit=primary.term.unit,
         )
+        primary.label = _TERM_LABEL.sub(lambda m: f"{m[1]}{_years(floor)}{m[3]}", primary.label, count=1)
 
 
 def _adjust_hate_crime_floors(ctx: SentencingContext) -> Optional[str]:
@@ -331,12 +342,14 @@ def _adjust_for_hire(ctx: SentencingContext) -> Optional[str]:
     if not primary.term or primary.term.unit != TermUnit.YEARS:
         return None
 
+    new_min = primary.term.min_value + 3
     primary.term = TermRange(
-        min_value=primary.term.min_value + 3,
+        min_value=new_min,
         max_value=primary.term.max_value,
         unit=primary.term.unit,
     )
-    primary.label = f"{primary.label} (for-hire enhancement applied: min +3-5 yr per PL 60.07)"
+    label = _TERM_LABEL.sub(lambda m: f"{m[1]}{_years(new_min)}{m[3]}", primary.label, count=1)
+    primary.label = f"{label} (for-hire enhancement: minimum raised 3–5 years, PL 60.07)"
     primary.statute_refs = list(primary.statute_refs) + ["PL 60.07"]
     return "For-hire vehicle enhancement: minimum +3 years"
 

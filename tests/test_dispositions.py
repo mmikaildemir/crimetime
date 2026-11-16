@@ -117,3 +117,36 @@ def test_report_does_not_repeat_disposition_type():
     md = render_report(_out("200.22", 1, 1))
     assert "Indeterminate sentence — Indeterminate sentence" not in md
     assert "**Recommended** · Indeterminate sentence — max 6–15 years" in md
+
+
+# --- Hate crimes (PL 485.10) ------------------------------------------------
+
+def test_hate_crime_keeps_violent_status_of_specified_offense():
+    # 485.10(1): 120.05 (D VFO) as a hate crime is a C VFO, not a non-violent C.
+    out = _out("120.05", hate_crime_motivated=True)
+    assert (out.classification, out.is_vfo, out.sentencing_track) == ("ClassC_Felony", True, "violent_felony")
+    assert _types(out) == ["determinate"]
+    assert _primary(out) == (3.5, 15)
+
+
+def test_hate_crime_does_not_make_non_violent_offense_violent():
+    out = _out("155.40", hate_crime_motivated=True)  # C non-VFO -> B non-VFO
+    assert (out.classification, out.is_vfo) == ("ClassB_Felony", False)
+
+
+@pytest.mark.parametrize("section,felonies,vfos,label", [
+    ("120.10", 0, 0, "Determinate sentence of 8–25 years"),                       # 485.10(3)(b)
+    ("120.10", 1, 1, "Determinate sentence of 12–25 years"),                      # 485.10(3)(c)
+    ("155.42", 0, 0, "Indeterminate sentence — max 6–25 years, min 1 yr to max/3"),  # 485.10(3)(a)
+    ("125.25", 0, 0, "Indeterminate sentence — 20–25 years to life"),             # 485.10(4)
+])
+def test_hate_crime_floor_shows_in_label(section, felonies, vfos, label):
+    d = _out(section, felonies, vfos, hate_crime_motivated=True).available_dispositions[0]
+    assert d.label == label
+
+
+def test_for_hire_label_shows_raised_minimum():
+    # PL 60.07: 120.06 base 3.5–15 → minimum raised to 6.5.
+    d = _out("120.06", victim_is_for_hire_operator=True).available_dispositions[0]
+    assert d.term.min_value == 6.5
+    assert d.label.startswith("Determinate sentence of 6.5–15 years")

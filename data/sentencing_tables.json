@@ -401,11 +401,11 @@
       "factField": "hate_crime_motivated",
       "eligibilityList": "HATECRIME_LIST",
       "felonyOnly": false,
-      "_note": "485.10(2): one category higher for misdemeanors and C/D/E felonies; violent stays violent. VFO re-derived (485.10 does not deem non-VFOs violent). Class B and A-I keep their class; minimum floors are applied after the disposition (hateCrimeBump block).",
+      "_note": "485.10(2): one category higher for misdemeanors and C/D/E felonies. 485.10(1): a hate crime whose specified offense is a VFO is deemed a VFO, and 485.10 never makes a non-VFO violent, so VFO status is kept from the specified offense (not re-derived from the bumped class). Class B and A-I keep their class; minimum floors are applied after the disposition (hateCrimeBump block).",
       "branches": [
         {
           "name": "misdemeanorOrClassCDE",
-          "vfo": "derive",
+          "vfo": "keep",
           "map": {
             "ClassA_Misdemeanor": "ClassE_Felony",
             "ClassB_Misdemeanor": "ClassA_Misdemeanor",
